@@ -1,0 +1,334 @@
+---
+title: " "
+format:
+  html:
+    self-contained: true
+    toc: false
+    theme: none
+    include-in-header:
+      text: |
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=Figtree:wght@300;400;600&display=swap" rel="stylesheet">
+        <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+        <style>
+          :root {
+            --sand:       #f5f0e8;
+            --sand-dark:  #e8e0d0;
+            --ink:        #2c2418;
+            --ink-mid:    #5a4d3e;
+            --ink-light:  #8a7d6b;
+            --terra:      #c47a4a;
+            --terra-light:#e8a87c;
+            --terra-pale: #f5e0d0;
+            --sage:       #7aab85;
+            --sage-mist:  #eef7f0;
+            --slate:      #5b8fa8;
+            --slate-light:#a0c4d4;
+            --purple:     #7b3294;
+            --white:      #ffffff;
+            --border:     #ddd5c8;
+          }
+          body { font-family: 'Figtree', sans-serif; background: var(--sand); color: var(--ink);
+                 max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; font-size: 18px; }
+
+          h1 { font-family: 'Fraunces', serif; font-size: 2.6rem; line-height: 1.08;
+               letter-spacing: -0.03em; border: none; margin-bottom: 0.6rem; color: var(--ink); }
+          h1 em { font-style: italic; color: var(--terra); }
+          h2 { font-family: 'Fraunces', serif; font-size: 1.6rem; margin-top: 3.5rem;
+               margin-bottom: 0.6rem; color: var(--ink); letter-spacing: -0.02em;
+               padding-top: 2rem; border-top: 1px solid var(--border); }
+          h2 em { font-style: italic; color: var(--sage); }
+          p { font-size: 1.05rem; line-height: 1.85; color: var(--ink-mid); font-weight: 300; }
+          strong { color: var(--ink); font-weight: 600; }
+
+          .note { background: var(--white); border-left: 3px solid var(--sage);
+                  border-radius: 0 12px 12px 0; padding: 1rem 1.2rem; margin: 1rem 0;
+                  font-size: 1rem; color: var(--ink-mid); line-height: 1.65; }
+
+          .compare-card { background: var(--white); border: 1.5px solid var(--border);
+                  border-radius: 16px; padding: 1.4rem 1.6rem; margin: 1rem 0; }
+          .compare-title { font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 700;
+                           color: var(--ink); margin-bottom: 0.6rem; }
+          .compare-row { display: flex; justify-content: space-between; align-items: center;
+                         padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+          .compare-row:last-child { border-bottom: none; }
+          .compare-label { color: var(--ink-light); font-weight: 400; min-width: 100px; }
+          .compare-val { font-weight: 600; color: var(--ink); min-width: 70px; text-align: right; }
+          .compare-avg { font-weight: 300; color: var(--ink-light); font-size: 0.85rem; min-width: 90px; text-align: right; }
+          .bar-bg { flex: 1; height: 8px; background: var(--sand-dark); border-radius: 4px;
+                    margin: 0 0.8rem; position: relative; }
+          .bar-fill { height: 100%; border-radius: 4px; background: var(--terra-light); }
+          .bar-marker { position: absolute; top: -3px; width: 2px; height: 14px;
+                        background: var(--ink); border-radius: 1px; }
+
+          table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin: 0.8rem 0; }
+          th { text-align: left; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+               letter-spacing: 0.07em; color: var(--ink-light); padding: 0.6rem 0.7rem;
+               border-bottom: 2px solid var(--border); background: var(--sand-dark); }
+          td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); color: var(--ink-mid); }
+          tr:hover td { background: var(--sand-dark); }
+
+          .axis-pick { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap;
+                       margin-bottom: 1rem; }
+          .axis-pick label { font-size: 0.85rem; font-weight: 600; color: var(--ink);
+                             text-transform: uppercase; letter-spacing: 0.05em; }
+          .axis-pick select { font-family: 'Figtree', sans-serif; font-size: 1rem;
+            padding: 0.45rem 0.9rem; border: 1.5px solid var(--border); border-radius: 8px;
+            background: var(--white); color: var(--ink); cursor: pointer; }
+
+          .leaflet-container { border-radius: 12px !important; }
+          .footer { margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--border);
+                    font-size: 0.85rem; color: var(--ink-light); text-align: center; }
+        </style>
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+load("workspace.RData")
+library(sf)
+library(leaflet)
+```
+
+```{r header}
+#| output: asis
+cat('<h1>Evaporative cooling in <em>Tucson</em></h1>')
+cat('<p>Swamp coolers are everywhere in Tucson. Cheap to run, great in dry heat, but they fail when humidity rises and they pull unfiltered air inside. <strong>We mapped where they are for the first time.</strong> Scroll down to explore.</p>')
+```
+
+```{r helpers}
+#| include: false
+map_sf <- voronoi_sf[, c("GEOID", "evap_prop", "lisa_cluster", "geometry")]
+map_sf <- merge(map_sf, bg[, c("GEOID", "med_income", "pct_minority",
+                                 "med_year_built", "pct_renter", "covenant")],
+                by = "GEOID", all.x = TRUE)
+hl <- highlightOptions(weight = 2, color = "#2c2418", fillOpacity = 0.9)
+
+avg_evap <- round(mean(bg$evap_prop) * 100, 1)
+avg_inc  <- round(mean(bg$med_income))
+avg_min  <- round(mean(bg$pct_minority) * 100, 0)
+avg_rent <- round(mean(bg$pct_renter) * 100, 0)
+avg_year <- round(mean(bg$med_year_built))
+```
+
+## Find your *neighborhood*
+
+Click any block group. A card will appear below showing how that neighborhood compares to the city average.
+
+```{r main-map}
+#| output: asis
+
+map_sf$idx <- seq_len(nrow(map_sf))
+
+pal_evap <- colorNumeric(c("#f5f0e8", "#e8a87c", "#b85c3a"), domain = map_sf$evap_prop)
+
+pop <- sprintf(
+  "<div style='font-family:Figtree,sans-serif;font-size:0.95rem;line-height:1.5'>
+   <strong style='font-size:1.15rem'>%s%%</strong> evap. cooling<br>
+   Income: $%s | Minority: %s%%<br>
+   Renter: %s%% | Built: %s</div>",
+  round(map_sf$evap_prop * 100, 1),
+  formatC(map_sf$med_income, format = "d", big.mark = ","),
+  round(map_sf$pct_minority * 100, 0),
+  round(map_sf$pct_renter * 100, 0),
+  map_sf$med_year_built)
+
+bg_js <- data.frame(
+  evap = round(map_sf$evap_prop * 100, 1),
+  income = map_sf$med_income,
+  minority = round(map_sf$pct_minority * 100, 0),
+  renter = round(map_sf$pct_renter * 100, 0),
+  year = map_sf$med_year_built,
+  covenant = map_sf$covenant
+)
+cat(sprintf('<script>var BG = %s;\n', jsonlite::toJSON(bg_js)))
+cat(sprintf('var AVG = {evap:%.1f, income:%d, minority:%d, renter:%d, year:%d};\n',
+            avg_evap, avg_inc, avg_min, avg_rent, avg_year))
+cat('
+function showCompare(i) {
+  var d = BG[i];
+  function bar(val, avg, max) {
+    var pct = (val / max * 100).toFixed(0);
+    var avgPct = (avg / max * 100).toFixed(0);
+    return "<div class=\\"bar-bg\\"><div class=\\"bar-fill\\" style=\\"width:" + pct + "%\\"></div>" +
+           "<div class=\\"bar-marker\\" style=\\"left:" + avgPct + "%\\" title=\\"City avg\\"></div></div>";
+  }
+  var html = "<div class=\\"compare-title\\">This neighborhood vs. Tucson average</div>";
+  var rows = [
+    {label:"Evap. cooling", val:d.evap+"%", avg:AVG.evap+"%", bar:bar(d.evap, AVG.evap, 100)},
+    {label:"Income", val:"$"+d.income.toLocaleString(), avg:"$"+AVG.income.toLocaleString(), bar:bar(d.income, AVG.income, 100000)},
+    {label:"Minority", val:d.minority+"%", avg:AVG.minority+"%", bar:bar(d.minority, AVG.minority, 100)},
+    {label:"Renter", val:d.renter+"%", avg:AVG.renter+"%", bar:bar(d.renter, AVG.renter, 100)},
+    {label:"Year built", val:d.year, avg:AVG.year, bar:""}
+  ];
+  rows.forEach(function(r) {
+    html += "<div class=\\"compare-row\\">" +
+      "<span class=\\"compare-label\\">" + r.label + "</span>" +
+      r.bar +
+      "<span class=\\"compare-val\\">" + r.val + "</span>" +
+      "<span class=\\"compare-avg\\">(avg " + r.avg + ")</span></div>";
+  });
+  if (d.covenant === 1) html += "<div style=\\"margin-top:0.6rem;font-size:0.9rem;color:#7b3294;font-weight:600\\">This area has a historically restrictive covenant.</div>";
+  document.getElementById("compare-card").innerHTML = html;
+  document.getElementById("compare-card").style.display = "block";
+}
+</script>')
+```
+
+```{r map-render}
+leaflet(map_sf, width = "100%", height = "520px") |>
+  addProviderTiles("CartoDB.Positron") |>
+  addPolygons(fillColor = ~pal_evap(evap_prop),
+              fillOpacity = 0.75, weight = 0.5, color = "#fff",
+              popup = pop, highlightOptions = hl,
+              layerId = ~idx) |>
+  addLegend(pal = pal_evap, values = ~evap_prop, title = "Evap. cooling",
+            position = "bottomright", opacity = 0.8) |>
+  htmlwidgets::onRender("function(el, x) {
+    this.on('click', function(e) {
+      if (e.layer && e.layer.options && e.layer.options.layerId) {
+        showCompare(e.layer.options.layerId - 1);
+      }
+    });
+  }")
+```
+
+```{r compare-placeholder}
+#| output: asis
+cat('<div id="compare-card" class="compare-card" style="display:none"></div>')
+```
+
+::: {.note}
+The dark mark on each bar is the city average. Click different neighborhoods to compare.
+:::
+
+## Explore *relationships*
+
+Pick any two variables. Each dot is a neighborhood. Hover for details.
+
+```{r scatter}
+#| output: asis
+sdat <- bg[, c("evap_prop", "med_income", "pct_minority", "med_year_built", "pct_renter")]
+
+cat('
+<div class="axis-pick">
+  <label>X</label>
+  <select id="xvar" onchange="updateScatter()">
+    <option value="pct_minority" selected>Minority %</option>
+    <option value="med_income">Income</option>
+    <option value="med_year_built">Year built</option>
+    <option value="pct_renter">Renter %</option>
+    <option value="evap_prop">Evap. cooling</option>
+  </select>
+  <label>Y</label>
+  <select id="yvar" onchange="updateScatter()">
+    <option value="evap_prop" selected>Evap. cooling</option>
+    <option value="med_income">Income</option>
+    <option value="pct_minority">Minority %</option>
+    <option value="med_year_built">Year built</option>
+    <option value="pct_renter">Renter %</option>
+  </select>
+</div>
+<div id="scatter-plot" style="width:100%;height:400px;border-radius:12px;"></div>
+')
+
+cat(sprintf("<script>\nvar SDATA = %s;\n", jsonlite::toJSON(sdat, dataframe = "columns")))
+cat('
+var SLABELS = {
+  evap_prop: "Evap. cooling prevalence",
+  med_income: "Median household income ($)",
+  pct_minority: "Minority proportion",
+  med_year_built: "Median year built",
+  pct_renter: "Renter proportion"
+};
+function updateScatter() {
+  var xv = document.getElementById("xvar").value;
+  var yv = document.getElementById("yvar").value;
+  var trace = {
+    x: SDATA[xv], y: SDATA[yv], mode: "markers",
+    marker: { size: 9, color: "#5b8fa8", opacity: 0.5, line: { width: 0.5, color: "#fff" } },
+    text: SDATA.evap_prop.map(function(_, i) {
+      return "Evap: " + (SDATA.evap_prop[i]*100).toFixed(1) + "%" +
+        "<br>Income: $" + SDATA.med_income[i].toLocaleString() +
+        "<br>Minority: " + (SDATA.pct_minority[i]*100).toFixed(0) + "%" +
+        "<br>Renter: " + (SDATA.pct_renter[i]*100).toFixed(0) + "%";
+    }),
+    hoverinfo: "text", type: "scatter"
+  };
+  var layout = {
+    xaxis: { title: { text: SLABELS[xv], font: { size: 14 } }, gridcolor: "#ddd5c8", zeroline: false },
+    yaxis: { title: { text: SLABELS[yv], font: { size: 14 } }, gridcolor: "#ddd5c8", zeroline: false },
+    font: { family: "Figtree, sans-serif", size: 13, color: "#2c2418" },
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { t: 10, r: 15, b: 60, l: 75 },
+    hoverlabel: { bgcolor: "#2c2418", font: { color: "#f5f0e8", family: "Figtree", size: 13 } }
+  };
+  Plotly.react("scatter-plot", [trace], layout, { displayModeBar: false });
+}
+document.addEventListener("DOMContentLoaded", function() { updateScatter(); });
+</script>')
+```
+
+::: {.note}
+Try different combinations. The relationship between income and evaporative cooling is strong. So is housing age.
+:::
+
+## Neighborhoods by *quartile*
+
+We split all block groups into four groups based on their evaporative cooler prevalence (Q1 = lowest, Q4 = highest).
+
+```{r table1}
+t1 <- table1
+t1$cell <- paste0(t1$mean, " ± ", t1$se)
+t1_wide <- reshape(t1[, c("var_label", "quartile", "cell")],
+                   idvar = "var_label", timevar = "quartile", direction = "wide")
+colnames(t1_wide) <- gsub("cell\\.", "", colnames(t1_wide))
+colnames(t1_wide)[1] <- "Variable"
+knitr::kable(t1_wide, row.names = FALSE)
+```
+
+::: {.note}
+Q4 neighborhoods (highest evaporative cooler prevalence) have substantially lower incomes, higher minority and renter proportions, and older housing than Q1.
+:::
+
+## Covenants and *cooling*
+
+Racially restrictive covenants barred non-white families from buying homes in certain Tucson neighborhoods. They were outlawed decades ago, but their legacy persists in the built environment.
+
+```{r cov-stat}
+#| output: asis
+cat(sprintf('Neighborhoods inside historically covenanted areas have **%sx higher odds** of high evaporative cooler prevalence (p = %s). Average prevalence inside: **%s%%**. Outside: **%s%%**.',
+            round(or_fish$estimate, 1), signif(or_fish$p.value, 3),
+            round(mean(cov_in) * 100, 1), round(mean(cov_out) * 100, 1)))
+```
+
+```{r covenant-map}
+pal_cov <- colorFactor(c("#e8e0d0", "#7b3294"), domain = c(0, 1))
+
+pop_cov <- sprintf(
+  "<div style='font-family:Figtree,sans-serif;font-size:0.95rem;line-height:1.5'>
+   Evap. cooling: <strong>%s%%</strong><br>
+   Covenanted: <strong>%s</strong><br>
+   Income: $%s</div>",
+  round(map_sf$evap_prop * 100, 1),
+  ifelse(map_sf$covenant == 1, "Yes", "No"),
+  formatC(map_sf$med_income, format = "d", big.mark = ","))
+
+leaflet(map_sf, width = "100%", height = "420px") |>
+  addProviderTiles("CartoDB.Positron") |>
+  addPolygons(fillColor = ~pal_cov(covenant),
+              fillOpacity = 0.7, weight = 0.5, color = "#fff",
+              popup = pop_cov, highlightOptions = hl) |>
+  addLegend(colors = c("#e8e0d0", "#7b3294"), labels = c("No", "Yes"),
+            title = "Covenanted", position = "bottomright", opacity = 0.8)
+```
+
+## *About*
+
+This is the first household-level spatial dataset of evaporative cooler adoption in a US city. What you see here are block group summaries, not individual household data. Part of a series of studies on cooling equity, heat vulnerability, and climate adaptation in Tucson.
+
+::: {.footer}
+Data Diversity Lab, University of Arizona. `r Sys.Date()`.
+:::

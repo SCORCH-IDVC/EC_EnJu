@@ -4,7 +4,7 @@ library(ggplot2)
 library(spdep)
 
 # ============================================================
-# 1. SIMULATE SAMPLE DATA (Optional...Miles will replace)
+# 1. SIMULATE SAMPLE DATA (replace down the line...)
 # ============================================================
 
 set.seed(42)
@@ -348,10 +348,13 @@ png(here("results", "Figure3_covenant_OR.png"), width = 5, height = 3, units = "
 print(fig4 + labs(title = ""))
 dev.off()
 
-cat("\n=== DONE ===\n")
-cat("Outputs in results/:\n")
-cat("  Table1_quartile_summary.csv\n")
-cat("  Table2_GLM_results.csv\n")
-cat("  Figure1_maps.pdf / .png\n")
-cat("  Figure2_scatterplots.pdf / .png\n")
-cat("  Figure3_covenant_OR.pdf / .png\n")
+# ============================================================
+# 9. RENDER WEBSITE (docs/results.qmd → docs/index.html)
+# ============================================================
+
+dir.create(here("docs"), recursive = TRUE, showWarnings = FALSE)
+save.image(file = here("docs", "workspace.RData"))
+
+quarto::quarto_render(here("docs", "results.qmd"),
+                      output_format = "html",
+                      output_file = "index.html")
