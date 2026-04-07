@@ -2,6 +2,12 @@ library(here)
 library(sf)
 library(ggplot2)
 library(spdep)
+library(sf)
+
+
+tfiles <- list.files(here("data", "Q1 Data Shapefile"))
+
+if(length(tfiles) == 0 ){
 
 # ============================================================
 # 1. SIMULATE SAMPLE DATA (replace down the line...)
@@ -51,14 +57,41 @@ bg <- data.frame(
 ## Convert to sf object
 bg_sf <- st_as_sf(bg, coords = c("lon", "lat"), crs = 4326)
 
+}else{
+  bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
+  #Dropping empty polygons
+  bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
+  bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
+  bg <- data.frame(bg_sf)
+  
+  ## Rename columns to match the simulated dataset
+  colnames(bg)[colnames(bg) == "geoid20"]   <- "GEOID"
+  colnames(bg)[colnames(bg) == "evp_prp"]   <- "evap_prop"
+  colnames(bg)[colnames(bg) == "med_inc"]    <- "med_income"
+  colnames(bg)[colnames(bg) == "pct_mnr"]    <- "pct_minority"
+  colnames(bg)[colnames(bg) == "ave_age"]    <- "med_year_built"
+  colnames(bg)[colnames(bg) == "pct_rnt"]    <- "pct_renter"
+  colnames(bg)[colnames(bg) == "pct_sfr"]    <- "pct_sfh"
+  colnames(bg)[colnames(bg) == "covennt"]    <- "covenant"
+  
+  ## Compute centroids for lon/lat
+  bg_sf <- st_as_sf(bg)
+  bg_sf <- st_transform(bg_sf, 4326)
+  coords <- st_coordinates(st_centroid(bg_sf))
+  bg$lon <- coords[, 1]
+  bg$lat <- coords[, 2]
+  bg_sf <- st_make_valid(bg_sf)
+}
+
 ## For mapping: create Voronoi polygons as stand-in for real block group shapes
-## Replace with real shapefiles: st_read(here("data", "block_groups.shp"))
+#sf_use_s2(FALSE)
 bbox <- st_as_sfc(st_bbox(bg_sf))
 voronoi <- st_voronoi(st_union(bg_sf), envelope = bbox)
 voronoi <- st_collection_extract(voronoi, "POLYGON")
 voronoi_sf <- st_sf(geometry = voronoi)
 voronoi_sf <- st_join(voronoi_sf, bg_sf)
 voronoi_sf <- voronoi_sf[!is.na(voronoi_sf$GEOID), ]
+#sf_use_s2(TRUE)
 
 # ============================================================
 # 2. DESCRIPTIVE STATISTICS BY EVAP PREVALENCE QUARTILE
@@ -189,8 +222,21 @@ cat("Moran p-value:", signif(moran_resid$p.value, 3), "\n")
 
 ## If significant, note that spatial error model is warranted
 if (moran_resid$p.value < 0.05) {
-  cat(">> Spatial autocorrelation detected. Spatial error model recommended.\n")
-  cat(">> Use: spatialreg::errorsarlm(evap_prop ~ ..., listw = lw)\n")
+  cat(">> Spatial autocorrelation detected. Fitting spatial error model.\n")
+  library(spatialreg)
+  m_spatial <- errorsarlm(evap_prop ~ z_income + z_minority + z_year_built + z_renter + covenant,
+                          data = bg, listw = lw)
+  print(summary(m_spatial))
+  
+  ## Extract coefficients table
+  se_coefs <- summary(m_spatial)$Coef
+  coef_table_spatial <- data.frame(
+    variable = rownames(se_coefs),
+    estimate = round(se_coefs[, 1], 3),
+    se = round(se_coefs[, 2], 3),
+    p = signif(se_coefs[, 4], 3)
+  )
+  write.csv(coef_table_spatial, here("results", "Table2b_spatial_error_model.csv"), row.names = FALSE)
 }
 
 # ============================================================
@@ -227,16 +273,15 @@ voronoi_sf <- merge(voronoi_sf, bg[, c("GEOID", "evap_q", "lisa_cluster",
 # ============================================================
 
 ## Color palettes
-pal_evap <- c("#fee5d9", "#fcae91", "#fb6a4a", "#cb181d")  # sequential red
 pal_lisa <- c("High-High" = "#d7191c", "Low-Low" = "#2c7bb6",
               "High-Low" = "#fdae61", "Low-High" = "#abd9e9",
               "Not significant" = "grey90")
 pal_cov <- c("0" = "grey70", "1" = "#7b3294")
 
 ## ---- Fig 1: Choropleth of evap cooler prevalence ----
-fig1 <- ggplot(voronoi_sf) +
+fig1 <- ggplot(bg_sf) +
   geom_sf(aes(fill = evap_prop), color = "white", size = 0.15) +
-  scale_fill_distiller(palette = "YlOrRd", direction = 1,
+  scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
                        name = "Evap. cooler\nprevalence") +
   theme_minimal(base_size = 9) +
   theme(axis.text = element_blank(),
@@ -249,7 +294,8 @@ fig1 <- ggplot(voronoi_sf) +
   labs(title = "a")
 
 ## ---- Fig 2: LISA cluster map ----
-fig2 <- ggplot(voronoi_sf) +
+bg_sf$lisa_cluster <- bg$lisa_cluster
+fig2 <- ggplot(bg_sf) +
   geom_sf(aes(fill = lisa_cluster), color = "white", size = 0.15) +
   scale_fill_manual(values = pal_lisa, name = "LISA cluster") +
   theme_minimal(base_size = 9) +

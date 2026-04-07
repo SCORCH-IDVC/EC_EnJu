@@ -100,10 +100,7 @@ cat('<p>Swamp coolers are everywhere in Tucson. Cheap to run, great in dry heat,
 
 ```{r helpers}
 #| include: false
-map_sf <- voronoi_sf[, c("GEOID", "evap_prop", "lisa_cluster", "geometry")]
-map_sf <- merge(map_sf, bg[, c("GEOID", "med_income", "pct_minority",
-                                 "med_year_built", "pct_renter", "covenant")],
-                by = "GEOID", all.x = TRUE)
+map_sf <- bg_sf
 hl <- highlightOptions(weight = 2, color = "#2c2418", fillOpacity = 0.9)
 
 avg_evap <- round(mean(bg$evap_prop) * 100, 1)
@@ -122,7 +119,7 @@ Click any block group. A card will appear below showing how that neighborhood co
 
 map_sf$idx <- seq_len(nrow(map_sf))
 
-pal_evap <- colorNumeric(c("#f5f0e8", "#e8a87c", "#b85c3a"), domain = map_sf$evap_prop)
+pal_evap <- colorNumeric(c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"), domain = map_sf$evap_prop)
 
 pop <- sprintf(
   "<div style='font-family:Figtree,sans-serif;font-size:0.95rem;line-height:1.5'>
@@ -220,15 +217,10 @@ cat('
     <option value="med_income">Income</option>
     <option value="med_year_built">Year built</option>
     <option value="pct_renter">Renter %</option>
-    <option value="evap_prop">Evap. cooling</option>
   </select>
   <label>Y</label>
   <select id="yvar" onchange="updateScatter()">
     <option value="evap_prop" selected>Evap. cooling</option>
-    <option value="med_income">Income</option>
-    <option value="pct_minority">Minority %</option>
-    <option value="med_year_built">Year built</option>
-    <option value="pct_renter">Renter %</option>
   </select>
 </div>
 <div id="scatter-plot" style="width:100%;height:400px;border-radius:12px;"></div>
@@ -272,7 +264,7 @@ document.addEventListener("DOMContentLoaded", function() { updateScatter(); });
 ```
 
 ::: {.note}
-Try different combinations. The relationship between income and evaporative cooling is strong. So is housing age.
+Try different combinations!
 :::
 
 ## Neighborhoods by *quartile*
@@ -290,7 +282,7 @@ knitr::kable(t1_wide, row.names = FALSE)
 ```
 
 ::: {.note}
-Q4 neighborhoods (highest evaporative cooler prevalence) have substantially lower incomes, higher minority and renter proportions, and older housing than Q1.
+Q4 neighborhoods (highest evaporative cooler prevalence) have substantially lower incomes and higher minority than Q1.
 :::
 
 ## Covenants and *cooling*
@@ -330,5 +322,5 @@ leaflet(map_sf, width = "100%", height = "420px") |>
 This is the first household-level spatial dataset of evaporative cooler adoption in a US city. What you see here are block group summaries, not individual household data. Part of a series of studies on cooling equity, heat vulnerability, and climate adaptation in Tucson.
 
 ::: {.footer}
-Data Diversity Lab, University of Arizona. `r Sys.Date()`.
+Website designed by the Data Diversity Lab, University of Arizona. `r Sys.Date()`.
 :::
