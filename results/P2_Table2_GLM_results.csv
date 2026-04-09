@@ -1,0 +1,5 @@
+"variable","estimate","se","p"
+"Intercept",-1.442,0.05,6.88e-119
+"Summer tmax (z)",0.141,0.054,0.00911
+"Income (z)",-1.045,0.071,4.27e-43
+"Renter (z)",-0.472,0.056,2.33e-16

@@ -1,0 +1,5 @@
+"variable","estimate","se","p"
+"(Intercept)",0.218,0.023,0
+"z_tmax",-0.001,0.011,0.901
+"z_income",-0.04,0.008,9.73e-07
+"z_renter",-0.06,0.007,0
