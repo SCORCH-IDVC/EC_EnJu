@@ -5,42 +5,34 @@ library(exactextractr)
 library(ggplot2)
 library(spdep)
 library(patchwork)
+library(prism)
 
+bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
+bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
+bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
+bg <- data.frame(bg_sf)
 
-tfiles <- list.files(here("data", "Q1 Data Shapefile"))
+## Rename columns
+colnames(bg)[colnames(bg) == "geoid20"]  <- "GEOID"
+colnames(bg)[colnames(bg) == "evp_prp"]  <- "evap_prop"
+colnames(bg)[colnames(bg) == "med_inc"]  <- "med_income"
+colnames(bg)[colnames(bg) == "pct_mnr"]  <- "pct_minority"
+colnames(bg)[colnames(bg) == "ave_age"]  <- "med_year_built"
+colnames(bg)[colnames(bg) == "pct_rnt"]  <- "pct_renter"
+colnames(bg)[colnames(bg) == "pct_sfr"]  <- "pct_sfh"
+colnames(bg)[colnames(bg) == "covennt"]  <- "covenant"
 
-if (length(tfiles) == 0) {
-  stop("Run Paper 1 script first, or place shapefile in data/Q1 Data Shapefile/")
-} else {
-  bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
-  bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
-  bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
-  bg <- data.frame(bg_sf)
-  
-  ## Rename columns
-  colnames(bg)[colnames(bg) == "geoid20"]  <- "GEOID"
-  colnames(bg)[colnames(bg) == "evp_prp"]  <- "evap_prop"
-  colnames(bg)[colnames(bg) == "med_inc"]  <- "med_income"
-  colnames(bg)[colnames(bg) == "pct_mnr"]  <- "pct_minority"
-  colnames(bg)[colnames(bg) == "ave_age"]  <- "med_year_built"
-  colnames(bg)[colnames(bg) == "pct_rnt"]  <- "pct_renter"
-  colnames(bg)[colnames(bg) == "pct_sfr"]  <- "pct_sfh"
-  colnames(bg)[colnames(bg) == "covennt"]  <- "covenant"
-  
-  ## Centroids
-  bg_sf <- st_as_sf(bg)
-  bg_sf <- st_transform(bg_sf, 4326)
-  coords <- st_coordinates(st_centroid(bg_sf))
-  bg$lon <- coords[, 1]
-  bg$lat <- coords[, 2]
-  bg_sf <- st_make_valid(bg_sf)
-}
+## Centroids
+bg_sf <- st_as_sf(bg)
+bg_sf <- st_transform(bg_sf, 4326)
+coords <- st_coordinates(st_centroid(bg_sf))
+bg$lon <- coords[, 1]
+bg$lat <- coords[, 2]
+bg_sf <- st_make_valid(bg_sf)
 
 cat("Block groups loaded:", nrow(bg), "\n")
 
-# ============================================================
-# 2. DOWNLOAD SUMMER TEMPERATURE (PRISM tmax, no account)
-# ============================================================
+# 2. DOWNLOAD SUMMER TEMPERATURE (PRISM tmax)
 
 dir.create(here("data", "rasters"), recursive = TRUE, showWarnings = FALSE)
 lst_path <- here("data", "rasters", "tucson_tmax_summer.tif")
@@ -48,8 +40,6 @@ lst_path <- here("data", "rasters", "tucson_tmax_summer.tif")
 if (!file.exists(lst_path)) {
   
   cat("=== Downloading PRISM tmax (Jun-Sep 2023) ===\n")
-  library(prism)
-  
   prism_dir <- here("data", "rasters", "prism_raw")
   dir.create(prism_dir, recursive = TRUE, showWarnings = FALSE)
   prism_set_dl_dir(prism_dir)
@@ -76,9 +66,7 @@ if (!file.exists(lst_path)) {
 
 cat("Temperature raster:", lst_path, "\n")
 
-# ============================================================
 # 3. ZONAL STATISTICS
-# ============================================================
 
 tmax_r <- rast(lst_path)
 
@@ -95,9 +83,7 @@ cat("Tmax range:", round(range(bg$mean_tmax, na.rm = TRUE), 1), "C\n")
 bg <- bg[!is.na(bg$mean_tmax), ]
 cat("Block groups with valid tmax:", nrow(bg), "\n")
 
-# ============================================================
 # 4. TABLE 1: BLOCK GROUP CHARACTERISTICS BY EVAP QUARTILE
-# ============================================================
 
 bg$evap_q <- cut(bg$evap_prop,
                  breaks = quantile(bg$evap_prop, probs = 0:4/4),
@@ -137,9 +123,7 @@ print(round(kw_tests, 4))
 
 write.csv(table1, here("results", "P2_Table1_quartile_tmax.csv"), row.names = FALSE)
 
-# ============================================================
 # 5. SPEARMAN CORRELATIONS
-# ============================================================
 
 cor_vars <- c("mean_tmax", "med_income", "pct_minority", "pct_renter")
 cor_labels <- c("Mean summer tmax", "Median income", "% Minority", "% Renter")
@@ -157,9 +141,7 @@ print(cor_results)
 
 write.csv(cor_results, here("results", "P2_TableS1_correlations.csv"), row.names = FALSE)
 
-# ============================================================
 # 6. BIVARIATE LISA: EVAP PREVALENCE x TEMPERATURE
-# ============================================================
 
 ## Spatial weights
 coords <- cbind(bg$lon, bg$lat)
@@ -189,9 +171,7 @@ cat("\n=== BIVARIATE LISA CLUSTERS ===\n")
 print(table(bg$bi_cluster))
 cat("Double-exposure hotspots (High evap / Hot):", sum(bg$bi_cluster == "High evap / Hot"), "\n")
 
-# ============================================================
 # 7. GLM: PREDICTORS OF EVAP COOLER PREVALENCE
-# ============================================================
 
 bg$z_tmax   <- scale(bg$mean_tmax)
 bg$z_income <- scale(bg$med_income)
@@ -235,9 +215,7 @@ if (moran_resid$p.value < 0.05) {
   write.csv(coef_table_spatial, here("results", "P2_Table2b_spatial_error_model.csv"), row.names = FALSE)
 }
 
-# ============================================================
 # 8. CHARACTERIZE DOUBLE-EXPOSURE HOTSPOTS
-# ============================================================
 
 hotspot <- bg[bg$bi_cluster == "High evap / Hot", ]
 non_hotspot <- bg[bg$bi_cluster != "High evap / Hot", ]
@@ -264,9 +242,7 @@ print(hotspot_table)
 
 write.csv(hotspot_table, here("results", "P2_TableS2_hotspot_demographics.csv"), row.names = FALSE)
 
-# ============================================================
 # 9. FIGURES
-# ============================================================
 
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 
@@ -374,9 +350,7 @@ figS1a <- make_scatter("mean_tmax", "Mean summer tmax (C)", "a")
 figS1b <- make_scatter("med_income", "Median household income ($)", "b")
 figS1c <- make_scatter("pct_renter", "Renter proportion", "c")
 
-# ============================================================
 # 10. EXPORT FIGURES
-# ============================================================
 
 ## Figure 1: Bivariate choropleth + inset legend
 fig1_final <- fig1 + inset_element(fig1_legend, left = 0.02, bottom = 0.02,

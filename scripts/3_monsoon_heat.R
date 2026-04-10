@@ -5,15 +5,10 @@ library(spdep)
 library(patchwork)
 library(splines)
 
-# ============================================================
 # 1. LOAD BLOCK GROUP DATA
-# ============================================================
 
 tfiles <- list.files(here("data", "Q1 Data Shapefile"))
 
-if (length(tfiles) == 0) {
-  stop("Run Paper 1 script first, or place shapefile in data/Q1 Data Shapefile/")
-} else {
   bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
   bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
   bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
@@ -34,18 +29,13 @@ if (length(tfiles) == 0) {
   bg$lon <- coords[, 1]
   bg$lat <- coords[, 2]
   bg_sf <- st_make_valid(bg_sf)
-}
 
-cat("Block groups loaded:", nrow(bg), "\n")
 
-# ============================================================
+
 # 2. DOWNLOAD HOURLY WEATHER DATA (AZMET + NWS Tucson)
-# ============================================================
-# We can also download data from the AZMET raw data archive:
-# https://cals.arizona.edu/azmet/
-#
-# For now, we pull NWS Tucson (TUS) via the Iowa Environmental
-# Mesonet (IEM) ASOS archive.
+## We can also download data from the AZMET raw data archive:
+## https://cals.arizona.edu/azmet/. For now, we pull NWS 
+## Tucson (TUS) via the Iowa Environmental Mesonet (IEM) ASOS archive.
 
 dir.create(here("data", "weather"), recursive = TRUE, showWarnings = FALSE)
 wx_path <- here("data", "weather", "tucson_hourly.csv")
@@ -55,7 +45,6 @@ if (!file.exists(wx_path)) {
   cat("=== Downloading hourly weather data ===\n")
   
   ## NWS Tucson International Airport (KTUS)
-  
   years <- 2018:2026
   wx_list <- list()
   
@@ -98,7 +87,7 @@ if (!file.exists(wx_path)) {
     write.csv(wx, wx_path, row.names = FALSE)
     cat("Weather data saved:", nrow(wx), "hourly observations\n")
   } else {
-    stop("Weather download failed. Check network connection.")
+    stop("Weather download failed")
   }
 }
 
@@ -107,12 +96,11 @@ wx$datetime <- as.POSIXct(wx$datetime, tz = "America/Phoenix")
 wx$date <- as.Date(wx$date)
 cat("Weather observations loaded:", nrow(wx), "\n")
 
-# ============================================================
 # 3. COOLER FAILURE DAY IDENTIFICATION
-# ============================================================
+
 # We flag hours where RH > 30% AND temperature > 95°F
 # co-occur. These are the hours when a swamp cooler
-# cannot meaningfully cool a home.
+# cannot meaningfully cool a home...need to check
 
 wx$failure <- wx$relh > 30 & wx$tmpf > 95
 
@@ -143,9 +131,8 @@ cat("Total days analyzed:", nrow(daily), "\n")
 cat("Total failure days:", sum(daily$failure_day), "\n")
 cat("Failure rate:", round(mean(daily$failure_day) * 100, 1), "%\n")
 
-# ============================================================
+
 # 4. TABLE 1: COOLER FAILURE CLIMATOLOGY
-# ============================================================
 
 ## Assign season: pre-monsoon (May-Jun), monsoon (Jul-Sep), post-monsoon (Oct)
 daily$season <- "Pre-monsoon"
@@ -194,9 +181,7 @@ write.csv(table1, here("results", "P3_Table1_failure_climatology.csv"), row.name
 ## Also save full annual breakdown for supplement
 write.csv(annual_season, here("results", "P3_TableS1_annual_season_breakdown.csv"), row.names = FALSE)
 
-# ============================================================
 # 5. COMPOUND EXPOSURE INDEX
-# ============================================================
 # Compound exposure = evap cooler prevalence x failure frequency.
 # Failure frequency is city-wide (one weather station), so the
 # spatial variation comes entirely from cooler prevalence.
@@ -217,9 +202,9 @@ bg$exposure_q <- cut(bg$compound_exposure,
 
 cat("Compound exposure range:", round(range(bg$compound_exposure), 1), "\n")
 
-# ============================================================
+
 # 6. TABLE 2: DEMOGRAPHICS OF HIGH VS LOW EXPOSURE
-# ============================================================
+
 
 high_exp <- bg[bg$exposure_q == "Q4 (highest)", ]
 low_exp  <- bg[bg$exposure_q == "Q1 (lowest)", ]
@@ -244,9 +229,8 @@ print(table2)
 
 write.csv(table2, here("results", "P3_Table2_demographics_by_exposure.csv"), row.names = FALSE)
 
-# ============================================================
+
 # 7. SPATIAL WEIGHTS AND MORAN'S I ON COMPOUND EXPOSURE
-# ============================================================
 
 coords <- cbind(bg$lon, bg$lat)
 nb <- knn2nb(knearneigh(coords, k = 5))
@@ -256,9 +240,8 @@ moran_exp <- moran.test(bg$compound_exposure, lw)
 cat("\nMoran's I on compound exposure:", round(moran_exp$estimate[1], 3), "\n")
 cat("p-value:", signif(moran_exp$p.value, 3), "\n")
 
-# ============================================================
+
 # 8. FIGURES
-# ============================================================
 
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 

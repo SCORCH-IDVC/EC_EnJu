@@ -3,99 +3,37 @@ library(sf)
 library(ggplot2)
 library(spdep)
 library(sf)
+library(spatialreg)
+library(patchwork)
+
+bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
+
+#Dropping empty polygons
+bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
+bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
+bg <- data.frame(bg_sf)
+
+## Rename columns to match the simulated dataset
+colnames(bg)[colnames(bg) == "geoid20"]   <- "GEOID"
+colnames(bg)[colnames(bg) == "evp_prp"]   <- "evap_prop"
+colnames(bg)[colnames(bg) == "med_inc"]    <- "med_income"
+colnames(bg)[colnames(bg) == "pct_mnr"]    <- "pct_minority"
+colnames(bg)[colnames(bg) == "ave_age"]    <- "med_year_built"
+colnames(bg)[colnames(bg) == "pct_rnt"]    <- "pct_renter"
+colnames(bg)[colnames(bg) == "pct_sfr"]    <- "pct_sfh"
+colnames(bg)[colnames(bg) == "covennt"]    <- "covenant"
+
+## Compute centroids for lon/lat
+bg_sf <- st_as_sf(bg)
+bg_sf <- st_transform(bg_sf, 4326)
+coords <- st_coordinates(st_centroid(bg_sf))
+bg$lon <- coords[, 1]
+bg$lat <- coords[, 2]
+bg_sf <- st_make_valid(bg_sf)
 
 
-tfiles <- list.files(here("data", "Q1 Data Shapefile"))
-
-if(length(tfiles) == 0 ){
-
-# ============================================================
-# 1. SIMULATE SAMPLE DATA (replace down the line...)
-# ============================================================
-
-set.seed(42)
-n_bg <- 220  # number of block groups
-
-## Simulate block group centroids (~Tucson bounding box)
-lon <- runif(n_bg, -111.08, -110.85)
-lat <- runif(n_bg, 32.10, 32.33)
-
-## Simulate evaporative cooler prevalence
-## Higher in south/west Tucson (lower lon, lower lat)
-south_west_score <- scale(-lon + -lat)
-evap_prob <- plogis(-0.5 + 1.2 * south_west_score + rnorm(n_bg, 0, 0.5))
-evap_prop <- round(evap_prob, 3)
-
-## Simulate ACS variables correlated with evap prevalence
-med_income <- round(55000 - 18000 * evap_prop + rnorm(n_bg, 0, 5000))
-pct_minority <- round(pmin(1, pmax(0, 0.25 + 0.45 * evap_prop + rnorm(n_bg, 0, 0.1))), 3)
-med_year_built <- round(1985 - 25 * evap_prop + rnorm(n_bg, 0, 5))
-pct_renter <- round(pmin(1, pmax(0, 0.3 + 0.3 * evap_prop + rnorm(n_bg, 0, 0.1))), 3)
-pop <- round(runif(n_bg, 400, 4000))
-
-## Housing type (proportion single-family)
-pct_sfh <- round(pmin(1, pmax(0, 0.7 - 0.2 * evap_prop + rnorm(n_bg, 0, 0.1))), 3)
-
-## Covenant indicator (1 = block group overlaps a historically covenanted area)
-covenant <- rbinom(n_bg, 1, prob = plogis(-1 + 1.5 * evap_prop))
-
-## Assemble block group data frame
-bg <- data.frame(
-  GEOID = paste0("040190", sprintf("%04d", 1:n_bg)),
-  lon = lon,
-  lat = lat,
-  evap_prop = evap_prop,
-  med_income = med_income,
-  pct_minority = pct_minority,
-  med_year_built = med_year_built,
-  pct_renter = pct_renter,
-  pct_sfh = pct_sfh,
-  pop = pop,
-  covenant = covenant
-)
-
-## Convert to sf object
-bg_sf <- st_as_sf(bg, coords = c("lon", "lat"), crs = 4326)
-
-}else{
-  bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
-  #Dropping empty polygons
-  bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
-  bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
-  bg <- data.frame(bg_sf)
-  
-  ## Rename columns to match the simulated dataset
-  colnames(bg)[colnames(bg) == "geoid20"]   <- "GEOID"
-  colnames(bg)[colnames(bg) == "evp_prp"]   <- "evap_prop"
-  colnames(bg)[colnames(bg) == "med_inc"]    <- "med_income"
-  colnames(bg)[colnames(bg) == "pct_mnr"]    <- "pct_minority"
-  colnames(bg)[colnames(bg) == "ave_age"]    <- "med_year_built"
-  colnames(bg)[colnames(bg) == "pct_rnt"]    <- "pct_renter"
-  colnames(bg)[colnames(bg) == "pct_sfr"]    <- "pct_sfh"
-  colnames(bg)[colnames(bg) == "covennt"]    <- "covenant"
-  
-  ## Compute centroids for lon/lat
-  bg_sf <- st_as_sf(bg)
-  bg_sf <- st_transform(bg_sf, 4326)
-  coords <- st_coordinates(st_centroid(bg_sf))
-  bg$lon <- coords[, 1]
-  bg$lat <- coords[, 2]
-  bg_sf <- st_make_valid(bg_sf)
-}
-
-## For mapping: create Voronoi polygons as stand-in for real block group shapes
-#sf_use_s2(FALSE)
-bbox <- st_as_sfc(st_bbox(bg_sf))
-voronoi <- st_voronoi(st_union(bg_sf), envelope = bbox)
-voronoi <- st_collection_extract(voronoi, "POLYGON")
-voronoi_sf <- st_sf(geometry = voronoi)
-voronoi_sf <- st_join(voronoi_sf, bg_sf)
-voronoi_sf <- voronoi_sf[!is.na(voronoi_sf$GEOID), ]
-#sf_use_s2(TRUE)
-
-# ============================================================
 # 2. DESCRIPTIVE STATISTICS BY EVAP PREVALENCE QUARTILE
-# ============================================================
+
 
 ## Create quartiles
 bg$evap_q <- cut(bg$evap_prop,
@@ -140,9 +78,9 @@ print(round(kw_tests, 4))
 ## Export Table 1
 write.csv(table1, here("results", "Table1_quartile_summary.csv"), row.names = FALSE)
 
-# ============================================================
+
 # 3. BIVARIATE CORRELATIONS
-# ============================================================
+
 
 ## Spearman correlations
 cor_vars <- c("med_income", "pct_minority", "med_year_built", "pct_renter")
@@ -159,9 +97,9 @@ cor_results$p <- signif(cor_results$p, 3)
 cat("\n=== SPEARMAN CORRELATIONS with evap cooler prevalence ===\n")
 print(cor_results)
 
-# ============================================================
+
 # 4. COVENANT OVERLAY
-# ============================================================
+
 
 ## Proportion of evap-cooler households in vs out of covenanted areas
 cov_in <- bg$evap_prop[bg$covenant == 1]
@@ -184,9 +122,9 @@ cat("Odds ratio (high evap in covenanted):", round(or_fish$estimate, 2), "\n")
 cat("Fisher p-value:", signif(or_fish$p.value, 3), "\n")
 cat("95% CI:", round(or_fish$conf.int, 2), "\n")
 
-# ============================================================
+
 # 5. GLM: PREDICTORS OF EVAPORATIVE COOLER PREVALENCE
-# ============================================================
+
 
 ## Standardize predictors for comparable coefficients
 bg$z_income <- scale(bg$med_income)
@@ -194,7 +132,7 @@ bg$z_minority <- scale(bg$pct_minority)
 bg$z_year_built <- scale(bg$med_year_built)
 bg$z_renter <- scale(bg$pct_renter)
 
-## Quasibinomial GLM (proportional outcome, overdispersion expected)
+## Quasibinomial GLM (proportional outcome, accounting for overdispersion)
 m1 <- glm(evap_prop ~ z_income + z_minority + z_year_built + z_renter + covenant,
           family = quasibinomial, data = bg)
 
@@ -220,10 +158,10 @@ moran_resid <- moran.test(residuals(m1), lw)
 cat("\nMoran's I on GLM residuals:", round(moran_resid$estimate[1], 3), "\n")
 cat("Moran p-value:", signif(moran_resid$p.value, 3), "\n")
 
-## If significant, note that spatial error model is warranted
+## If significant, we need to use the spatial error model
 if (moran_resid$p.value < 0.05) {
-  cat(">> Spatial autocorrelation detected. Fitting spatial error model.\n")
-  library(spatialreg)
+  cat("Spatial autocorrelation detected. Fitting spatial error model.\n")
+  
   m_spatial <- errorsarlm(evap_prop ~ z_income + z_minority + z_year_built + z_renter + covenant,
                           data = bg, listw = lw)
   print(summary(m_spatial))
@@ -239,9 +177,7 @@ if (moran_resid$p.value < 0.05) {
   write.csv(coef_table_spatial, here("results", "Table2b_spatial_error_model.csv"), row.names = FALSE)
 }
 
-# ============================================================
 # 6. LISA CLUSTERING
-# ============================================================
 
 ## Local Moran's I on evaporative cooler prevalence
 lisa <- localmoran(bg$evap_prop, lw)
@@ -263,14 +199,8 @@ bg$lisa_cluster[sig & bg$evap_prop < mean_evap & bg$lag_evap > mean_lag] <- "Low
 cat("\n=== LISA CLUSTER COUNTS ===\n")
 print(table(bg$lisa_cluster))
 
-## Merge back to spatial object for mapping
-voronoi_sf <- merge(voronoi_sf, bg[, c("GEOID", "evap_q", "lisa_cluster",
-                                       "z_income", "z_minority", "covenant")],
-                    by = "GEOID", all.x = TRUE)
 
-# ============================================================
 # 7. FIGURES
-# ============================================================
 
 ## Color palettes
 pal_lisa <- c("High-High" = "#d7191c", "Low-Low" = "#2c7bb6",
@@ -351,11 +281,8 @@ fig4 <- ggplot(or_dat, aes(x = or, y = label)) +
         plot.title = element_text(size = 10, face = "bold")) +
   labs(x = "Odds ratio (95% CI)", y = "")
 
-# ============================================================
-# 8. EXPORT FIGURES
-# ============================================================
 
-library(patchwork)
+# 8. EXPORT FIGURES
 
 ## ---- Figure 1: Maps (panels a, b) ----
 fig1_combined <- fig1 + fig2 + plot_layout(ncol = 2)
@@ -369,7 +296,6 @@ print(fig1_combined)
 dev.off()
 
 ## ---- Figure 2: Scatterplots (panels a, b, c, d) ----
-## Re-label panels for standalone figure
 fig3a <- make_scatter("med_income", "Median household income ($)", "a")
 fig3b <- make_scatter("pct_minority", "Minority proportion", "b")
 fig3c <- make_scatter("med_year_built", "Median year built", "c")
@@ -394,9 +320,8 @@ png(here("results", "Figure3_covenant_OR.png"), width = 5, height = 3, units = "
 print(fig4 + labs(title = ""))
 dev.off()
 
-# ============================================================
-# 9. RENDER WEBSITE (docs/results.qmd → docs/index.html)
-# ============================================================
+
+# 9. RENDER WEBSITE
 
 dir.create(here("docs"), recursive = TRUE, showWarnings = FALSE)
 save.image(file = here("docs", "workspace.RData"))

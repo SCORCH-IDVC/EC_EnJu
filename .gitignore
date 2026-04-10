@@ -2,8 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-data/*
+data/Q1 Data Shapefile
 .DS_Store
 *.Rproj
 docs/workspace.RData
 docs/.Rapp.history
+data/rasters/*
