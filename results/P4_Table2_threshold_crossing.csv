@@ -1,0 +1,8 @@
+"ssp","period","n_above","n_newly_above","pct_above","pct_newly_above"
+"observed","baseline",378,0,55.3,0
+"ssp245","near",396,18,58,2.6
+"ssp245","mid",395,17,57.8,2.5
+"ssp245","far",398,20,58.3,2.9
+"ssp585","near",393,15,57.5,2.2
+"ssp585","mid",398,20,58.3,2.9
+"ssp585","far",400,22,58.6,3.2

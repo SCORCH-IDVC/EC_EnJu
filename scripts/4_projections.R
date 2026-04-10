@@ -155,7 +155,7 @@ proj_wide <- merge(proj_tmax, proj_hurs,
 proj_wide$tmax_f <- proj_wide$tasmax_K * 9/5 - 459.67
 
 ## Failure threshold
-proj_wide$failure <- wx$hurs > 30 & wx$tmax_f > 95
+proj_wide$failure <- proj_wide$hurs > 30 & proj_wide$tmax_f > 95
 
 ## Annual failure days per model x ssp x period
 annual_fail <- aggregate(failure ~ model + ssp + period + year,
