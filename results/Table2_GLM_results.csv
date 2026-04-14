@@ -1,7 +1,0 @@
-"variable","estimate","se","p"
-"Intercept",-1.619,0.044,9.3e-165
-"Income (z)",-0.489,0.06,1.22e-15
-"Minority (z)",0.546,0.039,1.74e-39
-"Year built (z)",-0.843,0.043,2.37e-67
-"Renter (z)",-0.647,0.052,4.7e-32
-"Covenant",-0.054,0.107,0.615

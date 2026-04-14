@@ -11,6 +11,23 @@ bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
 #Dropping empty polygons
 bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
 bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
+
+## Compute centroids for lon/lat
+bg_sf <- st_as_sf(bg)
+bg_sf <- st_transform(bg_sf, 4326)
+coords <- st_coordinates(st_centroid(bg_sf))
+bg$lon <- coords[, 1]
+bg$lat <- coords[, 2]
+bg_sf <- st_make_valid(bg_sf)
+
+## Keep only those inside urban areas
+UrbanAreas <- st_read(here("data", "2020_Arizona_Census_Urban_Areas", "2020_Arizona_Census_Urban_Areas.shp"))
+UrbanAreas <- st_transform(UrbanAreas, st_crs(bg_sf))
+UrbanAreas <- st_make_valid(UrbanAreas)
+bg_centroids <- st_centroid(bg_sf)
+inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
+bg_sf <- bg_sf[inside, ]
+
 bg <- data.frame(bg_sf)
 
 ## Rename columns to match the simulated dataset
@@ -23,17 +40,7 @@ colnames(bg)[colnames(bg) == "pct_rnt"]    <- "pct_renter"
 colnames(bg)[colnames(bg) == "pct_sfr"]    <- "pct_sfh"
 colnames(bg)[colnames(bg) == "covennt"]    <- "covenant"
 
-## Compute centroids for lon/lat
-bg_sf <- st_as_sf(bg)
-bg_sf <- st_transform(bg_sf, 4326)
-coords <- st_coordinates(st_centroid(bg_sf))
-bg$lon <- coords[, 1]
-bg$lat <- coords[, 2]
-bg_sf <- st_make_valid(bg_sf)
-
-
 # 2. DESCRIPTIVE STATISTICS BY EVAP PREVALENCE QUARTILE
-
 
 ## Create quartiles
 bg$evap_q <- cut(bg$evap_prop,
@@ -76,7 +83,7 @@ cat("\nKruskal-Wallis p-values:\n")
 print(round(kw_tests, 4))
 
 ## Export Table 1
-write.csv(table1, here("results", "Table1_quartile_summary.csv"), row.names = FALSE)
+write.csv(table1, here("results", "P1_Table1_quartile_summary.csv"), row.names = FALSE)
 
 
 # 3. BIVARIATE CORRELATIONS
@@ -147,7 +154,7 @@ coef_table <- data.frame(
   se = round(summary(m1)$coefficients[, 2], 3),
   p = signif(summary(m1)$coefficients[, 4], 3)
 )
-write.csv(coef_table, here("results", "Table2_GLM_results.csv"), row.names = FALSE)
+write.csv(coef_table, here("results", "P1_Table2_GLM_results.csv"), row.names = FALSE)
 
 ## Check spatial autocorrelation of residuals
 coords <- cbind(bg$lon, bg$lat)
@@ -174,7 +181,7 @@ if (moran_resid$p.value < 0.05) {
     se = round(se_coefs[, 2], 3),
     p = signif(se_coefs[, 4], 3)
   )
-  write.csv(coef_table_spatial, here("results", "Table2b_spatial_error_model.csv"), row.names = FALSE)
+  write.csv(coef_table_spatial, here("results", "P1_Table2b_spatial_error_model.csv"), row.names = FALSE)
 }
 
 # 6. LISA CLUSTERING
@@ -287,11 +294,11 @@ fig4 <- ggplot(or_dat, aes(x = or, y = label)) +
 ## ---- Figure 1: Maps (panels a, b) ----
 fig1_combined <- fig1 + fig2 + plot_layout(ncol = 2)
 
-pdf(here("results", "Figure1_maps.pdf"), width = 10, height = 5)
+pdf(here("results", "P1_Figure1_maps.pdf"), width = 10, height = 5)
 print(fig1_combined)
 dev.off()
 
-png(here("results", "Figure1_maps.png"), width = 10, height = 5, units = "in", res = 300)
+png(here("results", "P1_Figure1_maps.png"), width = 10, height = 5, units = "in", res = 300)
 print(fig1_combined)
 dev.off()
 
@@ -303,20 +310,20 @@ fig3d <- make_scatter("pct_renter", "Renter proportion", "d")
 
 fig2_combined <- (fig3a + fig3b) / (fig3c + fig3d)
 
-pdf(here("results", "Figure2_scatterplots.pdf"), width = 8, height = 7)
+pdf(here("results", "P1_Figure2_scatterplots.pdf"), width = 8, height = 7)
 print(fig2_combined)
 dev.off()
 
-png(here("results", "Figure2_scatterplots.png"), width = 8, height = 7, units = "in", res = 300)
+png(here("results", "P1_Figure2_scatterplots.png"), width = 8, height = 7, units = "in", res = 300)
 print(fig2_combined)
 dev.off()
 
 ## ---- Figure 3: Covenant odds ratio ----
-pdf(here("results", "Figure3_covenant_OR.pdf"), width = 5, height = 3)
+pdf(here("results", "P1_Figure3_covenant_OR.pdf"), width = 5, height = 3)
 print(fig4 + labs(title = ""))
 dev.off()
 
-png(here("results", "Figure3_covenant_OR.png"), width = 5, height = 3, units = "in", res = 300)
+png(here("results", "P1_Figure3_covenant_OR.png"), width = 5, height = 3, units = "in", res = 300)
 print(fig4 + labs(title = ""))
 dev.off()
 

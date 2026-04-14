@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+    <idinfo>
+        <citation>
+            <citeinfo>
+                <title>2020 Arizona Census Urban Areas</title>
+                <geoform>vector digital data</geoform>
+            </citeinfo>
+        </citation>
+        <descript>
+            <abstract>This dataset presents the 2020 Census urban area boundaries in Arizona. The core TIGER/Line Files and Shapefiles do not include demographic data, but they do contain geographic entity codes (GEOIDs) that can be linked to the Census Bureau’s demographic data, available on data.census.gov. The TIGER/Line Shapefiles are extracts of selected geographic and cartographic information from the U.S. Census Bureau's Master Address File/Topologically Integrated Geographic Encoding and Referencing (MAF/TIGER) database.  The shapefiles include information for the fifty states, the District of Columbia, Puerto Rico, and the Island areas (American Samoa, the Commonwealth of the Northern Mariana Islands, Guam, and the United States Virgin Islands).  They do not contain any sensitive data, areas used for administering censuses and surveys, or attributes used only in internal processing.  The TIGER/Line Shapefiles are designed for use with geographic information system (GIS) software.  Data was provided by the US Census Bureau 2020 TIGER Web Interface Download. Last Updated: December 2022Update Frequency: N/A</abstract>
+            <purpose>This dataset presents the 2020 Census urban area boundaries in Arizona. Data was provided by the US Census Bureau 2020 TIGER Web Interface Download.</purpose>
+        </descript>
+        <keywords>
+            <theme>
+                <themekt>None</themekt>
+                <themekey>Census</themekey>
+                <themekey>Urban Areas</themekey>
+                <themekey>2020</themekey>
+                <themekey>Arizona</themekey>
+                <themekey>AZ</themekey>
+                <themekey>Arizona Department of Health Services</themekey>
+                <themekey>ADHS</themekey>
+            </theme>
+        </keywords>
+        <accconst>None</accconst>
+        <useconst>While every effort has been made to ensure the accuracy of this data, the Arizona Department of Health Services makes this data available on an "as is" and "as available" basis, and makes no representations or warranties of any kind, express or implied with respect to the data. The Arizona Department of Health Services is not liable for data errors, inaccuracies or omissions and shall be held harmless from and against all damage, loss or liability arising from any use or the results obtained from its use.Per A.R.S. 37-178: A public agency that shares geospatial data of which it is the custodian is not liable for errors, inaccuracies or omissions and shall be held harmless from and against all damage, loss or liability arising from any use of geospatial data that is shared. The information contained in these data is dynamic and may change over time. It is the responsibility of the data user to use the data appropriately and consistent with the intent stated in the metadata.Any type of boundary, linear or point locations contained within this data or displayed within this product are approximate, and should not be used for authoritative or legal location purposes. Users should independently research, investigate, and verify all information to determine if the quality is appropriate for their intended purpose. If legally-defensible boundaries or locations are required, they should first be established by an appropriate state-registered professional.</useconst>
+        <datacred>US Census Bureau</datacred>
+        <native>Esri ArcGIS 12.9.4.32739</native>
+    </idinfo>
+    <spdoinfo>
+        <direct>Vector</direct>
+        <ptvctinf>
+            <sdtsterm>
+                <sdtstype>GT-polygon composed of chains</sdtstype>
+                <ptvctcnt>0</ptvctcnt>
+            </sdtsterm>
+        </ptvctinf>
+    </spdoinfo>
+    <eainfo>
+        <detailed>
+            <enttyp>
+                <enttypl>Census2022_UrbanAreas1</enttypl>
+            </enttyp>
+            <attr>
+                <attrlabl>OBJECTID</attrlabl>
+                <attrdef>Internal feature number.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Sequential unique whole numbers that are automatically generated.</udom>
+                                    
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>Shape</attrlabl>
+                <attrdef>Feature geometry.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Coordinates defining the features.</udom>
+                                    
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>UACE20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>GEOID20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>NAME20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>NAMELSAD20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>LSAD20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>MTFCC20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>UATYP20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>FUNCSTAT20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>ALAND20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>AWATER20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>INTPTLAT20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>INTPTLON20</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Shape_Length</attrlabl>
+                <attrdef>Length of feature in internal units.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Positive real numbers that are automatically generated.</udom>
+                                    
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>Shape_Area</attrlabl>
+                <attrdef>Area of feature in internal units squared.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Positive real numbers that are automatically generated.</udom>
+                                    
+                </attrdomv>
+            </attr>
+        </detailed>
+    </eainfo>
+    <metainfo>
+        <metd>20230210</metd>
+        <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+    </metainfo>
+</metadata>

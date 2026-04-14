@@ -27,7 +27,13 @@ bg$lon <- coords[, 1]
 bg$lat <- coords[, 2]
 bg_sf <- st_make_valid(bg_sf)
 
-cat("Block groups loaded:", nrow(bg), "\n")
+## Keep only those inside urban areas
+UrbanAreas <- st_read(here("data", "2020_Arizona_Census_Urban_Areas", "2020_Arizona_Census_Urban_Areas.shp"))
+UrbanAreas <- st_transform(UrbanAreas, st_crs(bg_sf))
+UrbanAreas <- st_make_valid(UrbanAreas)
+bg_centroids <- st_centroid(bg_sf)
+inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
+bg_sf <- bg_sf[inside, ]
 
 # 2. OBSERVED BASELINE (from Script 3)
 
