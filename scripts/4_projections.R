@@ -5,21 +5,13 @@ library(ncdf4)
 library(ggplot2)
 library(patchwork)
 
-# 1. LOAD BLOCK GROUP DATA (from Script 1)
 bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
+
+#Dropping empty polygons
 bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
 bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
-bg <- data.frame(bg_sf)
 
-colnames(bg)[colnames(bg) == "geoid20"]  <- "GEOID"
-colnames(bg)[colnames(bg) == "evp_prp"]  <- "evap_prop"
-colnames(bg)[colnames(bg) == "med_inc"]  <- "med_income"
-colnames(bg)[colnames(bg) == "pct_mnr"]  <- "pct_minority"
-colnames(bg)[colnames(bg) == "ave_age"]  <- "med_year_built"
-colnames(bg)[colnames(bg) == "pct_rnt"]  <- "pct_renter"
-colnames(bg)[colnames(bg) == "pct_sfr"]  <- "pct_sfh"
-colnames(bg)[colnames(bg) == "covennt"]  <- "covenant"
-
+## Compute centroids for lon/lat
 bg_sf <- st_as_sf(bg)
 bg_sf <- st_transform(bg_sf, 4326)
 coords <- st_coordinates(st_centroid(bg_sf))
@@ -34,6 +26,8 @@ UrbanAreas <- st_make_valid(UrbanAreas)
 bg_centroids <- st_centroid(bg_sf)
 inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
 bg_sf <- bg_sf[inside, ]
+
+bg <- data.frame(bg_sf)
 
 # 2. OBSERVED BASELINE (from Script 3)
 
