@@ -13,14 +13,6 @@ bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
 bg_sf <- bg_sf[bg_sf$med_inc != 0 & !is.na(bg_sf$med_inc), ]
 bg_sf <- bg_sf[!is.na(bg_sf$evp_prp), ]
 
-## Compute centroids for lon/lat
-bg_sf <- st_as_sf(bg)
-bg_sf <- st_transform(bg_sf, 4326)
-coords <- st_coordinates(st_centroid(bg_sf))
-bg$lon <- coords[, 1]
-bg$lat <- coords[, 2]
-bg_sf <- st_make_valid(bg_sf)
-
 ## Keep only those inside urban areas
 UrbanAreas <- st_read(here("data", "2020_Arizona_Census_Urban_Areas", "2020_Arizona_Census_Urban_Areas.shp"))
 UrbanAreas <- st_transform(UrbanAreas, st_crs(bg_sf))
@@ -41,7 +33,13 @@ colnames(bg)[colnames(bg) == "pct_rnt"]    <- "pct_renter"
 colnames(bg)[colnames(bg) == "pct_sfr"]    <- "pct_sfh"
 colnames(bg)[colnames(bg) == "covennt"]    <- "covenant"
 
-cat("Block groups loaded:", nrow(bg), "\n")
+## Compute centroids for lon/lat
+bg_sf <- st_as_sf(bg)
+bg_sf <- st_transform(bg_sf, 4326)
+coords <- st_coordinates(st_centroid(bg_sf))
+bg$lon <- coords[, 1]
+bg$lat <- coords[, 2]
+bg_sf <- st_make_valid(bg_sf)
 
 # 2. DOWNLOAD SUMMER TEMPERATURE (PRISM tmax)
 
