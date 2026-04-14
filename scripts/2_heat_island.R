@@ -251,6 +251,44 @@ print(hotspot_table)
 
 write.csv(hotspot_table, here("results", "P2_TableS2_hotspot_demographics.csv"), row.names = FALSE)
 
+## Plot distributions
+
+hotspot$group <- "Hotspot"
+non_hotspot$group <- "Non-hotspot"
+combined <- rbind(hotspot, non_hotspot)
+
+## Build histograms
+hist_list <- lapply(seq_along(compare_vars), function(i) {
+  v <- compare_vars[i]
+  lab <- compare_labels[i]
+  p_val <- hotspot_table$wilcox_p[i]
+  p_text <- ifelse(p_val < 0.001, "p < 0.001", paste0("p = ", p_val))
+  
+  ggplot(combined, aes_string(x = v, fill = "group")) +
+    geom_histogram(aes(y = after_stat(ndensity)), alpha = 0.6, position = "identity",
+                   bins = 25, color = NA) +
+    scale_fill_manual(values = c("Hotspot" = "#d73027", "Non-hotspot" = "#2c7bb6"), name = "") +
+    annotate("text", x = Inf, y = Inf, label = p_text,
+             hjust = 1.1, vjust = 1.5, size = 2.5, color = "grey40") +
+    theme_minimal(base_size = 9) +
+    theme(panel.grid.minor = element_blank(),
+          legend.position = ifelse(i == 1, "top", "none"),
+          plot.title = element_text(size = 9, face = "bold")) +
+    labs(x = lab, y = "Scaled density", title = letters[i])
+})
+
+## Combine into 2x3 panel
+fig_hist <- (hist_list[[1]] + hist_list[[2]] + hist_list[[3]]) /
+  (hist_list[[4]] + hist_list[[5]] + hist_list[[6]])
+
+pdf(here("results", "P2_FigureS2_hotspot_histograms.pdf"), width = 10, height = 6)
+print(fig_hist)
+dev.off()
+
+png(here("results", "P2_FigureS2_hotspot_histograms.png"), width = 10, height = 6, units = "in", res = 300)
+print(fig_hist)
+dev.off()
+
 # 9. FIGURES
 
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
