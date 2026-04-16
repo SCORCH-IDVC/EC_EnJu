@@ -8,3 +8,4 @@ data/Q1 Data Shapefile
 docs/workspace.RData
 docs/.Rapp.history
 data/rasters/*
+docs/*.Rdata

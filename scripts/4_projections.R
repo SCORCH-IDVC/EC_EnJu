@@ -41,14 +41,14 @@ bg_sf <- st_make_valid(bg_sf)
 
 # 2. OBSERVED BASELINE (from Script 3)
 
-wx_path <- here("data", "weather", "tucson_hourly.csv")
+wx <- read.csv(here("data", "weather", "tucson_hourly.csv"))
 wx$failure <- wx$relh > 30 & wx$tmpf > 95
 
 ## Daily failure counts
 daily_obs <- aggregate(failure ~ date, data = wx, FUN = sum)
 colnames(daily_obs)[2] <- "failure_hours"
-daily_obs$year <- as.integer(format(daily_obs$date, "%Y"))
-daily_obs$month <- as.integer(format(daily_obs$date, "%m"))
+daily_obs$year <- as.integer(format(as.Date(daily_obs$date), "%Y"))
+daily_obs$month <- as.integer(format(as.Date(daily_obs$date), "%m"))
 daily_obs$failure_day <- as.integer(daily_obs$failure_hours > 0)
 
 ## Observed baseline: mean annual failure days (Jun-Sep)

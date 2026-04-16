@@ -88,9 +88,27 @@ bg$mean_tmax <- exact_extract(tmax_r, bg_proj, 'mean')
 cat("\n=== ZONAL STATISTICS ===\n")
 cat("Tmax range:", round(range(bg$mean_tmax, na.rm = TRUE), 1), "C\n")
 
-## Drop block groups with NA
+## ---- NDVI zonal statistics ----
+
+ndvi_path <- here("data", "Tucson_landsat_ndvi_mean_2023-2025.tif")
+
+if (file.exists(ndvi_path)) {
+  ndvi_r <- rast(ndvi_path)
+  bg_proj_ndvi <- st_transform(bg_sf, crs(ndvi_r))
+  bg$mean_ndvi <- exact_extract(ndvi_r, bg_proj_ndvi, 'mean')
+  cat("NDVI range:", round(range(bg$mean_ndvi, na.rm = TRUE), 3), "\n")
+} else {
+  cat("WARNING: NDVI raster not found at", ndvi_path, "\n")
+  cat("NDVI analyses will be skipped.\n")
+  bg$mean_ndvi <- NA
+}
+
+has_ndvi <- !all(is.na(bg$mean_ndvi))
+
+## Drop block groups with NA tmax (keep NDVI NAs for now, handled per-analysis)
 bg <- bg[!is.na(bg$mean_tmax), ]
 cat("Block groups with valid tmax:", nrow(bg), "\n")
+if (has_ndvi) cat("Block groups with valid NDVI:", sum(!is.na(bg$mean_ndvi)), "\n")
 
 # 4. TABLE 1: BLOCK GROUP CHARACTERISTICS BY EVAP QUARTILE
 
@@ -111,6 +129,11 @@ summarize_by_quartile <- function(x, group) {
 vars <- c("mean_tmax", "med_income", "pct_minority", "pct_renter")
 var_labels <- c("Mean summer tmax (C)", "Median income ($)",
                 "Minority (%)", "Renter (%)")
+
+## Add NDVI to table if available
+vars <- c(vars, "mean_ndvi")
+var_labels <- c(var_labels, "Mean NDVI")
+
 
 table1_list <- lapply(vars, function(v) {
   out <- summarize_by_quartile(bg[[v]], bg$evap_q)
@@ -137,9 +160,14 @@ write.csv(table1, here("results", "P2_Table1_quartile_tmax.csv"), row.names = FA
 cor_vars <- c("mean_tmax", "med_income", "pct_minority", "pct_renter")
 cor_labels <- c("Mean summer tmax", "Median income", "% Minority", "% Renter")
 
+
+cor_vars <- c(cor_vars, "mean_ndvi")
+cor_labels <- c(cor_labels, "Mean NDVI")
+
+
 cor_results <- data.frame(
   variable = cor_labels,
-  rho = sapply(cor_vars, function(v) cor(bg$evap_prop, bg[[v]], method = "spearman")),
+  rho = sapply(cor_vars, function(v) cor(bg$evap_prop, bg[[v]], method = "spearman", use = "complete.obs")),
   p = sapply(cor_vars, function(v) cor.test(bg$evap_prop, bg[[v]], method = "spearman")$p.value)
 )
 cor_results$rho <- round(cor_results$rho, 3)
@@ -147,6 +175,16 @@ cor_results$p <- signif(cor_results$p, 3)
 
 cat("\n=== SPEARMAN CORRELATIONS ===\n")
 print(cor_results)
+
+## NDVI-tmax correlation (vegetation as heat mediator)
+ndvi_tmax_cor <- cor.test(bg$mean_ndvi, bg$mean_tmax, method = "spearman")
+cat("\nNDVI-tmax correlation: rho =", round(ndvi_tmax_cor$estimate, 3),
+    "p =", signif(ndvi_tmax_cor$p.value, 3), "\n")
+
+ndvi_income_cor <- cor.test(bg$mean_ndvi, bg$med_income, method = "spearman")
+cat("NDVI-income correlation: rho =", round(ndvi_income_cor$estimate, 3),
+    "p =", signif(ndvi_income_cor$p.value, 3), "\n")
+
 
 write.csv(cor_results, here("results", "P2_TableS1_correlations.csv"), row.names = FALSE)
 
@@ -186,7 +224,7 @@ bg$z_tmax   <- scale(bg$mean_tmax)
 bg$z_income <- scale(bg$med_income)
 bg$z_renter <- scale(bg$pct_renter)
 
-## Quasibinomial GLM
+## Quasibinomial GLM (without NDVI)
 m1 <- glm(evap_prop ~ z_tmax + z_income + z_renter,
           family = quasibinomial, data = bg)
 
@@ -199,6 +237,29 @@ coef_table <- data.frame(
   se = round(summary(m1)$coefficients[, 2], 3),
   p = signif(summary(m1)$coefficients[, 4], 3)
 )
+
+## GLM with NDVI added to test vegetation as independent predictor
+bg$z_ndvi <- scale(bg$mean_ndvi)
+
+m2 <- glm(evap_prop ~ z_tmax + z_ndvi + z_income + z_renter,
+          family = quasibinomial, data = bg)
+
+cat("\n=== TABLE 2b: GLM WITH NDVI ===\n")
+print(summary(m2))
+
+coef_table_ndvi <- data.frame(
+  variable = c("Intercept", "Summer tmax (z)", "NDVI (z)", "Income (z)", "Renter (z)"),
+  estimate = round(coef(m2), 3),
+  se = round(summary(m2)$coefficients[, 2], 3),
+  p = signif(summary(m2)$coefficients[, 4], 3)
+)
+write.csv(coef_table_ndvi, here("results", "P2_Table2c_GLM_with_NDVI.csv"), row.names = FALSE)
+
+## Compare AIC-like deviance
+cat("\nDeviance without NDVI:", round(deviance(m1), 1), "\n")
+cat("Deviance with NDVI:   ", round(deviance(m2), 1), "\n")
+
+
 write.csv(coef_table, here("results", "P2_Table2_GLM_results.csv"), row.names = FALSE)
 
 ## Moran's I on residuals
@@ -234,6 +295,12 @@ compare_vars <- c("evap_prop", "mean_tmax", "med_income",
 compare_labels <- c("Evap. prevalence", "Mean summer tmax (C)",
                     "Median income ($)", "Minority (%)",
                     "Renter (%)", "Year built")
+
+## Add NDVI to hotspot comparison
+
+compare_vars <- c(compare_vars, "mean_ndvi")
+compare_labels <- c(compare_labels, "Mean NDVI (tree cover)")
+
 
 hotspot_table <- data.frame(
   variable = compare_labels,
@@ -277,15 +344,23 @@ hist_list <- lapply(seq_along(compare_vars), function(i) {
     labs(x = lab, y = "Scaled density", title = letters[i])
 })
 
-## Combine into 2x3 panel
-fig_hist <- (hist_list[[1]] + hist_list[[2]] + hist_list[[3]]) /
-  (hist_list[[4]] + hist_list[[5]] + hist_list[[6]])
+## Combine into panel layout (adjust grid if NDVI is present)
+if (has_ndvi && length(hist_list) == 7) {
+  fig_hist <- (hist_list[[1]] + hist_list[[2]] + hist_list[[3]]) /
+    (hist_list[[4]] + hist_list[[5]] + hist_list[[6]]) /
+    (hist_list[[7]] + plot_spacer() + plot_spacer())
+  hist_h <- 9
+} else {
+  fig_hist <- (hist_list[[1]] + hist_list[[2]] + hist_list[[3]]) /
+    (hist_list[[4]] + hist_list[[5]] + hist_list[[6]])
+  hist_h <- 6
+}
 
-pdf(here("results", "P2_FigureS2_hotspot_histograms.pdf"), width = 10, height = 6)
+pdf(here("results", "P2_FigureS2_hotspot_histograms.pdf"), width = 10, height = hist_h)
 print(fig_hist)
 dev.off()
 
-png(here("results", "P2_FigureS2_hotspot_histograms.png"), width = 10, height = 6, units = "in", res = 300)
+png(here("results", "P2_FigureS2_hotspot_histograms.png"), width = 10, height = hist_h, units = "in", res = 300)
 print(fig_hist)
 dev.off()
 
@@ -372,9 +447,36 @@ fig2 <- ggplot(bg_sf2) +
         plot.title = element_text(size = 10, face = "bold")) +
   labs(title = "b")
 
+## ---- Figure 3: NDVI choropleth map ----
+
+bg_sf2$mean_ndvi <- bg$mean_ndvi
+
+fig3_ndvi <- ggplot(bg_sf2) +
+  geom_sf(aes(fill = mean_ndvi), color = "white", size = 0.15) +
+  scale_fill_gradientn(colors = c("#f0e6c8", "#c6d69e", "#78b560", "#2a7f2a"),
+                       name = "Mean NDVI") +
+  theme_minimal(base_size = 9) +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = c(0.15, 0.25),
+        legend.key.height = unit(0.4, "cm"),
+        legend.key.width = unit(0.3, "cm"),
+        plot.title = element_text(size = 10, face = "bold")) +
+  labs(title = "c")
+
+pdf(here("results", "P2_Figure3_NDVI_map.pdf"), width = 7, height = 7)
+print(fig3_ndvi)
+dev.off()
+
+png(here("results", "P2_Figure3_NDVI_map.png"), width = 7, height = 7, units = "in", res = 300)
+print(fig3_ndvi)
+dev.off()
+
+
 ## ---- Figure S1: Scatterplots ----
 make_scatter <- function(xvar, xlab, panel_label) {
-  rho <- cor(bg$evap_prop, bg[[xvar]], method = "spearman")
+  rho <- cor(bg$evap_prop, bg[[xvar]], method = "spearman", use = "complete.obs")
   pval <- cor.test(bg$evap_prop, bg[[xvar]], method = "spearman")$p.value
   ptext <- ifelse(pval < 0.001, "p < 0.001", paste0("p = ", signif(pval, 2)))
   label <- paste0("rho == ", round(rho, 2))
@@ -396,6 +498,8 @@ make_scatter <- function(xvar, xlab, panel_label) {
 figS1a <- make_scatter("mean_tmax", "Mean summer tmax (C)", "a")
 figS1b <- make_scatter("med_income", "Median household income ($)", "b")
 figS1c <- make_scatter("pct_renter", "Renter proportion", "c")
+figS1d <- make_scatter("mean_ndvi", "Mean NDVI (tree/vegetation cover)", "d")
+
 
 # 10. EXPORT FIGURES
 
@@ -420,13 +524,45 @@ png(here("results", "P2_Figure2_LISA_double_exposure.png"), width = 7, height = 
 print(fig2)
 dev.off()
 
-## Figure S1: Scatterplots (3 panels)
-figS1 <- figS1a + figS1b + figS1c + plot_layout(ncol = 3)
+## Figure S1: Scatterplots
 
-pdf(here("results", "P2_FigureS1_scatterplots.pdf"), width = 10, height = 4)
+figS1 <- (figS1a + figS1b) / (figS1c + figS1d)
+s1_w <- 8; s1_h <- 7
+
+pdf(here("results", "P2_FigureS1_scatterplots.pdf"), width = s1_w, height = s1_h)
 print(figS1)
 dev.off()
 
-png(here("results", "P2_FigureS1_scatterplots.png"), width = 10, height = 4, units = "in", res = 300)
+png(here("results", "P2_FigureS1_scatterplots.png"), width = s1_w, height = s1_h, units = "in", res = 300)
 print(figS1)
+dev.off()
+
+## ---- Figure S3: NDVI vs tmax scatter (mediator check) ----
+
+rho_nt <- cor(bg$mean_ndvi, bg$mean_tmax, method = "spearman", use = "complete.obs")
+pval_nt <- cor.test(bg$mean_ndvi, bg$mean_tmax, method = "spearman")$p.value
+ptext_nt <- ifelse(pval_nt < 0.001, "p < 0.001", paste0("p = ", signif(pval_nt, 2)))
+
+figS3 <- ggplot(bg, aes(x = mean_ndvi, y = mean_tmax)) +
+  geom_point(size = 1.2, alpha = 0.5, color = "grey30") +
+  geom_smooth(method = "lm", se = TRUE, color = "#2a7f2a",
+              fill = "#78b560", alpha = 0.2, linewidth = 0.7) +
+  annotate("text", x = Inf, y = Inf,
+           label = paste0("rho == ", round(rho_nt, 2)), parse = TRUE,
+           hjust = 1.1, vjust = 1.5, size = 3) +
+  annotate("text", x = Inf, y = Inf, label = ptext_nt,
+           hjust = 1.1, vjust = 3, size = 2.5, color = "grey40") +
+  theme_minimal(base_size = 9) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold")) +
+  labs(x = "Mean NDVI (tree/vegetation cover)",
+       y = "Mean summer tmax (C)",
+       title = "")
+
+pdf(here("results", "P2_FigureS3_NDVI_vs_tmax.pdf"), width = 5, height = 5)
+print(figS3)
+dev.off()
+
+png(here("results", "P2_FigureS3_NDVI_vs_tmax.png"), width = 5, height = 5, units = "in", res = 300)
+print(figS3)
 dev.off()

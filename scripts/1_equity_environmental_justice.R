@@ -327,12 +327,3 @@ png(here("results", "P1_Figure3_covenant_OR.png"), width = 5, height = 3, units 
 print(fig4 + labs(title = ""))
 dev.off()
 
-
-# 9. RENDER WEBSITE
-
-dir.create(here("docs"), recursive = TRUE, showWarnings = FALSE)
-save.image(file = here("docs", "workspace.RData"))
-
-quarto::quarto_render(here("docs", "results.qmd"),
-                      output_format = "html",
-                      output_file = "index.html")
