@@ -1,56 +1,14 @@
 ---
-title: " "
+title: "The Geography of Inadequate Cooling"
+subtitle: ""
 format:
   html:
+    theme: [default, custom.scss]
     self-contained: true
-    toc: true
-    toc-title: "Studies"
-    toc-depth: 1
-    theme: none
+    navigation-mode: linear
     include-in-header:
       text: |
-        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=Figtree:wght@300;400;600&display=swap" rel="stylesheet">
-        <style>
-          :root { --sand:#f5f0e8; --sand-dark:#e8e0d0; --ink:#2c2418; --ink-mid:#5a4d3e;
-            --ink-light:#8a7d6b; --terra:#c47a4a; --terra-light:#e8a87c; --sage:#7aab85;
-            --slate:#5b8fa8; --purple:#7b3294; --white:#fff; --border:#ddd5c8; }
-          body { font-family:'Figtree',sans-serif; background:var(--sand); color:var(--ink);
-                 max-width:960px; margin:0 auto; padding:3rem 1.5rem; font-size:18px; }
-          h1 { font-family:'Fraunces',serif; font-size:2.6rem; line-height:1.08;
-               letter-spacing:-0.03em; border:none; margin-bottom:0.6rem; }
-          h1 em { font-style:italic; color:var(--terra); }
-          h2 { font-family:'Fraunces',serif; font-size:1.5rem; margin-top:3rem; margin-bottom:0.6rem;
-               color:var(--ink); padding-top:2rem; border-top:2px solid var(--border); }
-          h3 { font-family:'Fraunces',serif; font-size:1.15rem; color:var(--ink-mid);
-               margin-top:1.5rem; margin-bottom:0.4rem; }
-          p,li { font-size:1.05rem; line-height:1.85; color:var(--ink-mid); font-weight:300; }
-          strong { color:var(--ink); font-weight:600; }
-          .note { background:var(--white); border-left:3px solid var(--sage);
-                  border-radius:0 12px 12px 0; padding:1rem 1.2rem; margin:1rem 0;
-                  font-size:1rem; color:var(--ink-mid); line-height:1.65; }
-          .study-num { font-family:'Fraunces',serif; font-size:3rem; font-weight:700;
-                       color:var(--sand-dark); float:left; margin-right:0.6rem; line-height:1; }
-          table { width:100%; border-collapse:collapse; font-size:0.92rem; margin:0.8rem 0; }
-          th { text-align:left; font-size:0.72rem; font-weight:600; text-transform:uppercase;
-               letter-spacing:0.07em; color:var(--ink-light); padding:0.55rem 0.6rem;
-               border-bottom:2px solid var(--border); background:var(--sand-dark); }
-          td { padding:0.45rem 0.6rem; border-bottom:1px solid var(--border); color:var(--ink-mid); }
-          tr:hover td { background:var(--sand-dark); }
-          .leaflet-container { border-radius:12px !important; }
-          .footer { margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--border);
-                    font-size:0.85rem; color:var(--ink-light); text-align:center; }
-          .quarto-title { display:none; }
-          #TOC { font-size:0.85rem; }
-          #TOC a { color:var(--ink-mid); text-decoration:none; }
-          #TOC a:hover { color:var(--terra); }
-          .nav-tabs { border-bottom:2px solid var(--border); margin-bottom:1rem; }
-          .nav-tabs .nav-link { font-family:'Figtree',sans-serif; font-size:0.9rem;
-            color:var(--ink-light); border:none; padding:0.5rem 1rem; }
-          .nav-tabs .nav-link.active { color:var(--terra); border-bottom:2px solid var(--terra);
-            font-weight:600; }
-          .tab-content { min-height:200px; }
-          .js-plotly-plot { border-radius:12px; }
-        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=Figtree:wght@300;400;500;600&display=swap" rel="stylesheet">
 execute:
   echo: false
   warning: false
@@ -71,449 +29,587 @@ e4 <- new.env(); if (file.exists("ws_4_projections.RData")) load("ws_4_projectio
 e5 <- new.env(); if (file.exists("ws_5_health.RData")) load("ws_5_health.RData", envir = e5)
 if (!exists("bg_sf", envir = e1) && file.exists("workspace.RData")) load("workspace.RData", envir = e1)
 
-hl <- highlightOptions(weight = 2, color = "#2c2418", fillOpacity = 0.9)
+hl <- highlightOptions(weight = 2, color = "#2c2418", fillOpacity = 0.85)
 pal4 <- c("#2c7bb6", "#abd9e9", "#fee090", "#d73027")
 
-## Choropleth map helper
-cmap <- function(sf_data, var, title, popup_vars, popup_labs, pal_colors = pal4) {
+cmap <- function(sf_data, var, title, pvars, plabs, pal_colors = pal4, h = "520px") {
   vals <- sf_data[[var]]
   pal <- colorNumeric(pal_colors, domain = vals, na.color = "#ccc")
   pop <- sapply(seq_len(nrow(sf_data)), function(i) {
-    bits <- sapply(seq_along(popup_vars), function(j) {
-      paste0(popup_labs[j], ": <strong>", round(sf_data[[popup_vars[j]]][i], 2), "</strong>")
-    })
-    paste0("<div style='font-family:Figtree;font-size:0.9rem;line-height:1.6'>",
+    bits <- sapply(seq_along(pvars), function(j)
+      paste0("<span style='color:#8a7d6b'>", plabs[j], ":</span> <strong>",
+             round(sf_data[[pvars[j]]][i], 2), "</strong>"))
+    paste0("<div style='font-family:Figtree;font-size:13px;line-height:1.7'>",
            paste(bits, collapse = "<br>"), "</div>")
   })
-  leaflet(sf_data, width = "100%", height = "440px") |>
+  leaflet(sf_data, width = "100%", height = h) |>
     addProviderTiles("CartoDB.Positron") |>
-    addPolygons(fillColor = ~pal(vals), fillOpacity = 0.75, weight = 0.5,
+    addPolygons(fillColor = ~pal(vals), fillOpacity = 0.75, weight = 0.4,
                 color = "#fff", popup = pop, highlightOptions = hl) |>
     addLegend(pal = pal, values = vals, title = title, position = "bottomright", opacity = 0.8)
 }
-```
 
-```{r header}
-#| output: asis
-cat('<h1>Evaporative Cooling in <em>Tucson</em></h1>')
-cat('<p>Swamp coolers are everywhere in Tucson. Cheap to run, great in dry heat, but they fail when humidity rises. <strong>We mapped where they are for the first time.</strong> Five studies, one dataset.</p>')
+plh <- list(bgcolor = "#2c2418", font = list(color = "#f8faf8", family = "Figtree", size = 13))
+plm <- list(t = 10, r = 10, b = 50, l = 60)
 ```
 
 
-# 1 -- Equity
+## {background-color="#e4f0e7"}
 
-<span class="study-num">1</span> **Who depends on evaporative cooling?** Lower-income neighborhoods, neighborhoods with more renters, older housing, and higher minority proportions all have significantly higher evaporative cooler prevalence.
+::: {style="text-align:center; padding-top:8%;"}
+[*Who depends on swamp coolers in Tucson?*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+[Evaporative coolers in Tucson. Here we show who depends on them, where they fail, and what might happen next...]{style="font-family:Figtree; font-size:0.85em; color:#8a7d6b; margin-top:2em; display:block;"}
+:::
 
-::: {.panel-tabset}
+This is a story about swamp coolers. About who depends on them, where they fail, and what that means for the people inside those homes. They are cheap to run, great in dry heat, and the most common cooling technology in the city. But they fail when humidity rises. They pull unfiltered air indoors. And they concentrate in the neighborhoods that can least afford an alternative. **We mapped them for the first time.** This is what we found...
 
-## Maps
 
-```{r p1-maps, results='asis'}
-bg1 <- e1$bg; sf1 <- e1$bg_sf
-sf1 <- st_make_valid(sf1)
-pvars <- c("evap_prop", "med_income", "pct_minority", "pct_renter", "med_year_built")
-plabs <- c("Evap. prevalence", "Income ($)", "Minority (%)", "Renter (%)", "Year built")
+We start with the most basic questions. Where are the swamp coolers? Who lives in those neighborhoods?
 
-## Evap prevalence map with all variables in popup
-cmap(sf1, "evap_prop", "Evap. cooling", pvars, plabs)
+## Where the swamp coolers are {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+sf1 <- st_make_valid(e1$bg_sf); bg1 <- e1$bg
+pvars <- c("evap_prop","med_income","pct_minority","pct_renter","med_year_built")
+plabs <- c("Evap. prevalence","Income ($)","Minority (%)","Renter (%)","Year built")
+cmap(sf1, "evap_prop", "Evap. cooling", pvars, plabs, h = "480px")
 ```
+:::
+::: {.column width="45%"}
+Click any neighborhood. Red means more swamp coolers. Blue means fewer.
 
-```{r p1-sociodem}
-#| output: asis
-cat("Switch maps below to explore sociodemographic patterns.\n\n")
-```
+The south and west sides of the city carry the highest prevalence. The foothills and east side carry the lowest.
 
-```{r p1-income}
-cmap(sf1, "med_income", "Median income ($)", pvars, plabs, rev(pal4))
-```
+This is not random. It tracks income, race, housing age, and renter status almost perfectly.
 
-```{r p1-minority}
-cmap(sf1, "pct_minority", "Minority (%)", pvars, plabs)
-```
+The spatial gradient is stark. Evaporative cooler prevalence ranges from near zero in the Catalina Foothills to over 60% in parts of the south side. The pattern is immediately recognizable to anyone who knows Tucson.
+:::
+::::
 
-## Relationships
+## The gradients {.smaller}
 
-```{r p1-scatter}
+:::: {.columns}
+::: {.column width="33%"}
+::: {style="text-align:center; padding-top:8%;"}
+[*Income*]{style="font-family:Fraunces; font-size:1.5em; color:#2c2418;"}
+:::
+```{r}
 bg1$evap_pct <- bg1$evap_prop * 100
-bg1$min_pct <- bg1$pct_minority * 100
-bg1$rent_pct <- bg1$pct_renter * 100
-
-p <- ggplot(bg1, aes(x = min_pct, y = evap_pct,
-                      text = paste0("Evap: ", round(evap_pct,1), "%",
-                                    "<br>Income: $", formatC(med_income, big.mark=","),
-                                    "<br>Minority: ", round(min_pct,0), "%",
-                                    "<br>Renter: ", round(rent_pct,0), "%"))) +
-  geom_point(alpha = 0.5, color = "#5b8fa8", size = 2) +
-  geom_smooth(method = "loess", se = TRUE, color = "#d73027", fill = "#fc8d59", alpha = 0.15) +
-  theme_minimal(base_size = 12) +
-  labs(x = "Minority (%)", y = "Evap. cooler prevalence (%)")
-
-ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8", family = "Figtree")))
-```
-
-```{r p1-scatter2}
-p2 <- ggplot(bg1, aes(x = med_income / 1000, y = evap_pct,
-                       text = paste0("Evap: ", round(evap_pct,1), "%",
-                                     "<br>Income: $", formatC(med_income, big.mark=","),
-                                     "<br>Minority: ", round(min_pct,0), "%"))) +
-  geom_point(alpha = 0.5, color = "#5b8fa8", size = 2) +
-  geom_smooth(method = "loess", se = TRUE, color = "#d73027", fill = "#fc8d59", alpha = 0.15) +
-  theme_minimal(base_size = 12) +
+p <- ggplot(bg1, aes(x = med_income/1000, y = evap_pct,
+  text = paste0("Evap: ", round(evap_pct,1), "%<br>Income: $",
+    formatC(med_income, big.mark=","), "<br>Minority: ",
+    round(pct_minority*100,0), "%"))) +
+  geom_point(alpha = 0.4, color = "#5b8fa8", size = 2) +
+  geom_smooth(method="loess", se=TRUE, color="#c47a4a", fill="#e8a87c", alpha=0.15, linewidth=0.8) +
+  theme_minimal(base_size = 14) + theme(panel.grid.minor = element_blank()) +
   labs(x = "Median income ($K)", y = "Evap. cooler prevalence (%)")
-
-ggplotly(p2, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
+ggplotly(p, tooltip="text")
 ```
+::: {style="text-align:justify; padding-top:8%;"}
+Lower-income neighborhoods have dramatically higher evaporative cooler prevalence. This is not a choice. It is a constraint. Swamp coolers cost a fraction of what refrigerated AC costs to install and run. They persist where the money to replace them does not.
+:::
+:::
+::: {.column width="33%"}
+::: {style="text-align:center; padding-top:8%;"}
+[*Race*]{style="font-family:Fraunces; font-size:1.5em; color:#2c2418;"}
+:::
+```{r}
+p <- ggplot(bg1, aes(x = pct_minority, y = evap_pct,
+  text = paste0("Evap: ", round(evap_pct,1), "%<br>Income: $",
+    formatC(med_income, big.mark=","), "<br>Minority: ",
+    round(pct_minority*100,0), "%"))) +
+  geom_point(alpha = 0.4, color = "#5b8fa8", size = 2) +
+  geom_smooth(method="loess", se=TRUE, color="#c47a4a", fill="#e8a87c", alpha=0.15, linewidth=0.8) +
+  theme_minimal(base_size = 14) + theme(panel.grid.minor = element_blank()) +
+  labs(x = "Percent minority", y = "Evap. cooler prevalence (%)")
+ggplotly(p, tooltip="text")
+```
+::: {style="text-align:justify; padding-top:8%;"}
+XXX
+:::
 
-## Covenants
+:::
+::: {.column width="33%"}
+::: {style="text-align:center; padding-top:8%;"}
+[*Built year*]{style="font-family:Fraunces; font-size:1.5em; color:#2c2418;"}
+:::
+```{r}
+p <- ggplot(bg1, aes(x = med_year_built, y = evap_pct,
+  text = paste0("Evap: ", round(evap_pct,1), "%<br>Income: $",
+    formatC(med_income, big.mark=","), "<br>Minority: ",
+    round(pct_minority*100,0), "%"))) +
+  geom_point(alpha = 0.4, color = "#5b8fa8", size = 2) +
+  geom_smooth(method="loess", se=TRUE, color="#c47a4a", fill="#e8a87c", alpha=0.15, linewidth=0.8) +
+  theme_minimal(base_size = 14) + theme(panel.grid.minor = element_blank()) +
+  labs(x = "Median year built", y = "Evap. cooler prevalence (%)")
+ggplotly(p, tooltip="text")
+```
+::: {style="text-align:justify; padding-top:8%;"}
+XXX
+:::
+:::
+::::
 
-```{r p1-cov}
+## Spatial clusters {.smaller}
+
+:::: {.columns}
+
+::: {.column width="45%"}
+Our clustering analysis confirms that this pattern is not random. Red areas are clusters of high evaporative cooler prevalence surrounded by other high-prevalence neighborhoods. Blue areas are clusters of low prevalence.
+
+The spatial autocorrelation is statistically significant. Swamp cooler dependence is a neighborhood-level phenomenon, not a household-level one.
+:::
+
+::: {.column width="55%"}
+```{r}
+sf1$lisa_cluster <- bg1$lisa_cluster
+lisa_pal <- colorFactor(c("#d73027","#fc8d59","#abd9e9","#2c7bb6","#e8e8e8"),
+  levels = c("High-High","High-Low","Low-High","Low-Low","Not significant"))
+pop_l <- sprintf("<div style='font-family:Figtree;font-size:13px'><strong>%s</strong><br>Evap: %s%%</div>",
+  sf1$lisa_cluster, round(sf1$evap_prop*100,1))
+leaflet(sf1, width="100%", height="480px") |>
+  addProviderTiles("CartoDB.Positron") |>
+  addPolygons(fillColor=~lisa_pal(lisa_cluster), fillOpacity=0.75, weight=0.4,
+              color="#fff", popup=pop_l, highlightOptions=hl) |>
+  addLegend(pal=lisa_pal, values=~lisa_cluster, title="LISA cluster", position="bottomright", opacity=0.8)
+```
+:::
+
+::::
+
+
+## The covenant legacy {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+pal_cov <- colorFactor(c("#e2ddd6","#7b3294"), domain=c(0,1))
+pop_c <- sprintf("<div style='font-family:Figtree;font-size:13px'>Evap: <strong>%s%%</strong><br>Covenanted: <strong>%s</strong><br>Income: $%s</div>",
+  round(sf1$evap_prop*100,1), ifelse(sf1$covenant==1,"Yes","No"),
+  formatC(sf1$med_income, format="d", big.mark=","))
+leaflet(sf1, width="100%", height="480px") |>
+  addProviderTiles("CartoDB.Positron") |>
+  addPolygons(fillColor=~pal_cov(covenant), fillOpacity=0.7, weight=0.4,
+              color="#fff", popup=pop_c, highlightOptions=hl) |>
+  addLegend(colors=c("#e2ddd6","#7b3294"), labels=c("No","Yes"),
+            title="Covenanted", position="bottomright", opacity=0.8)
+```
+:::
+::: {.column width="45%"}
+
+Covenants shaped who could build wealth through homeownership and where investment flowed for decades. The housing stock in covenanted areas aged without the renovations that wealthier neighborhoods received. The residents who moved in after the covenants were lifted had less capital to upgrade cooling systems.
+
+```{r}
 #| output: asis
 or_fish <- e1$or_fish; cov_in <- e1$cov_in; cov_out <- e1$cov_out
-cat(sprintf('::: {.note}\nNeighborhoods inside historically covenanted areas have **%sx higher odds** of high evaporative cooler prevalence (p = %s). Average prevalence inside: **%s%%**. Outside: **%s%%**.\n:::\n',
-            round(or_fish$estimate, 1), signif(or_fish$p.value, 3),
-            round(mean(cov_in) * 100, 1), round(mean(cov_out) * 100, 1)))
+cat(sprintf('Neighborhoods inside historically covenanted areas have **%sx higher odds** of high evaporative cooler prevalence.\n\nAverage prevalence inside: **%s%%**. Outside: **%s%%**.\n\nThe evaporative cooler is not the cause of this inequality. It is its residue.',
+  round(or_fish$estimate,1), round(mean(cov_in)*100,1), round(mean(cov_out)*100,1)))
 ```
+:::
+::::
 
-```{r p1-covmap}
-pal_cov <- colorFactor(c("#e8e0d0", "#7b3294"), domain = c(0, 1))
-pop_cov <- sprintf("<div style='font-family:Figtree;font-size:0.9rem'>Evap: <strong>%s%%</strong><br>Covenanted: <strong>%s</strong><br>Income: $%s</div>",
-  round(sf1$evap_prop * 100, 1), ifelse(sf1$covenant == 1, "Yes", "No"),
-  formatC(sf1$med_income, format = "d", big.mark = ","))
-
-leaflet(sf1, width = "100%", height = "420px") |>
-  addProviderTiles("CartoDB.Positron") |>
-  addPolygons(fillColor = ~pal_cov(covenant), fillOpacity = 0.7,
-              weight = 0.5, color = "#fff", popup = pop_cov, highlightOptions = hl) |>
-  addLegend(colors = c("#e8e0d0", "#7b3294"), labels = c("No", "Yes"),
-            title = "Covenanted", position = "bottomright", opacity = 0.8)
-```
-
-## LISA clusters
-
-```{r p1-lisa}
-sf1$lisa_cluster <- bg1$lisa_cluster
-lisa_pal <- colorFactor(c("#d7191c", "#fdae61", "#abd9e9", "#2c7bb6", "grey85"),
-                         levels = c("High-High", "High-Low", "Low-High", "Low-Low", "Not significant"))
-pop_lisa <- sprintf("<div style='font-family:Figtree;font-size:0.9rem'>Cluster: <strong>%s</strong><br>Evap: %s%%</div>",
-  sf1$lisa_cluster, round(sf1$evap_prop * 100, 1))
-
-leaflet(sf1, width = "100%", height = "420px") |>
-  addProviderTiles("CartoDB.Positron") |>
-  addPolygons(fillColor = ~lisa_pal(lisa_cluster), fillOpacity = 0.75,
-              weight = 0.5, color = "#fff", popup = pop_lisa, highlightOptions = hl) |>
-  addLegend(pal = lisa_pal, values = ~lisa_cluster, title = "LISA cluster",
-            position = "bottomright", opacity = 0.8)
-```
-
+::: {style="text-align:center; padding-top:8%;"}
+[*The hottest places*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
 :::
 
+::: {.notes}
+Now we add a layer. Not only do swamp-cooler-dependent neighborhoods have the weakest cooling technology, they also sit in the hottest parts of the city.
+:::
 
-# 2 -- Heat island
+## Double exposure {.smaller}
 
-<span class="study-num">2</span> **Do the hottest neighborhoods also have the most swamp coolers?** We overlaid evaporative cooler prevalence with summer maximum temperature to identify double-exposure hotspots.
-
-::: {.panel-tabset}
-
-## Temperature map
-
-```{r p2-tmax}
-if (exists("bg", envir = e2)) {
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e2)) {
   bg2 <- e2$bg; sf2 <- st_as_sf(bg2); sf2 <- st_make_valid(sf2)
   if (is.na(st_crs(sf2))) sf2 <- st_set_crs(sf2, 4326)
-  cmap(sf2, "mean_tmax", "Summer tmax (C)",
-       c("evap_prop", "mean_tmax", "med_income", "pct_minority"),
-       c("Evap. prevalence", "Tmax (C)", "Income ($)", "Minority (%)"))
-} else { cat('<div class="note">Run Script 2 first.</div>') }
+    sf2 <-sf::st_transform(sf2, 4326)
+  cmap(sf2, "evap_prop", "Evap. cooling",
+    c("evap_prop","mean_tmax","med_income"), c("Evap","Tmax (C)","Income ($)"), h="440px")
+}
 ```
-
-## NDVI map
-
-```{r p2-ndvi}
-if (exists("bg", envir = e2) && "mean_ndvi" %in% colnames(e2$bg) && !all(is.na(e2$bg$mean_ndvi))) {
-  cmap(sf2, "mean_ndvi", "Mean NDVI",
-       c("mean_ndvi", "mean_tmax", "evap_prop", "med_income"),
-       c("NDVI", "Tmax (C)", "Evap. prevalence", "Income ($)"),
-       c("#f0e6c8", "#c6d69e", "#78b560", "#2a7f2a"))
-} else { cat('<div class="note">NDVI data not available. Run Script 2 with NDVI raster.</div>') }
+[Evaporative cooler prevalence.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e2)) {
+  cmap(sf2, "mean_tmax", "Tmax (C)",
+    c("mean_tmax","evap_prop","med_income"), c("Tmax (C)","Evap","Income ($)"),
+    c("#fee090","#fc8d59","#d73027","#b30000"), h="440px")
+}
 ```
+[Summer maximum temperature (PRISM 4km).]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::::
 
-## Double exposure
+::: {.notes}
+Compare the two maps. The red areas on the left (high evaporative cooling) overlap substantially with the red areas on the right (highest temperatures). These neighborhoods have the worst cooling technology AND the most heat.
+:::
 
-```{r p2-bivar}
-if (exists("bg", envir = e2) && "bi_cluster" %in% colnames(e2$bg)) {
+## Less green does not mean more heat {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e2) && "mean_ndvi" %in% colnames(e2$bg) && !all(is.na(e2$bg$mean_ndvi))) {
+  p <- ggplot(bg2, aes(x=mean_ndvi, y=mean_tmax,
+    text=paste0("NDVI: ",round(mean_ndvi,3),"<br>Tmax: ",round(mean_tmax,1)," C",
+                "<br>Evap: ",round(evap_prop*100,1),"%"))) +
+    geom_point(alpha=0.4, color="#78b560", size=2) +
+    geom_smooth(method="lm", se=TRUE, color="#2a7f2a", fill="#b5d4be", alpha=0.15, linewidth=0.8) +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="Mean NDVI (vegetation cover)", y="Summer tmax (C)")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
+}
+```
+:::
+::: {.column width="45%"}
+Neighborhoods with less vegetation are hotter. This is the urban heat island effect mediated by tree canopy.
+
+The neighborhoods without trees are the same ones stuck with swamp coolers. Less shade, more pavement, higher temperatures, and a cooling technology that was already inadequate.
+:::
+::::
+
+
+## Bivariate clusters {.smaller}
+
+```{r}
+if (exists("bg", envir=e2) && "bi_cluster" %in% colnames(e2$bg)) {
   sf2$bi_cluster <- bg2$bi_cluster
-  bi_pal <- colorFactor(c("#d7191c", "#fdae61", "#abd9e9", "#2c7bb6", "grey85"),
-    levels = c("High evap / Hot", "High evap / Cool", "Low evap / Hot", "Low evap / Cool", "Not significant"))
-  pop_bi <- sprintf("<div style='font-family:Figtree;font-size:0.9rem'>Cluster: <strong>%s</strong><br>Evap: %s%% | Tmax: %s C</div>",
-    sf2$bi_cluster, round(sf2$evap_prop * 100, 1), round(sf2$mean_tmax, 1))
-  leaflet(sf2, width = "100%", height = "440px") |>
+  bi_pal <- colorFactor(c("#d73027","#fc8d59","#abd9e9","#2c7bb6","#e8e8e8"),
+    levels=c("High evap / Hot","High evap / Cool","Low evap / Hot","Low evap / Cool","Not significant"))
+  pop_bi <- sprintf("<div style='font-family:Figtree;font-size:13px'><strong>%s</strong><br>Evap: %s%% | Tmax: %s C</div>",
+    sf2$bi_cluster, round(sf2$evap_prop*100,1), round(sf2$mean_tmax,1))
+  leaflet(sf2, width="100%", height="500px") |>
     addProviderTiles("CartoDB.Positron") |>
-    addPolygons(fillColor = ~bi_pal(bi_cluster), fillOpacity = 0.75,
-                weight = 0.5, color = "#fff", popup = pop_bi, highlightOptions = hl) |>
-    addLegend(pal = bi_pal, values = ~bi_cluster, title = "Bivariate LISA",
-              position = "bottomright", opacity = 0.8)
-} else { cat('<div class="note">Run Script 2 first.</div>') }
-```
-
-## Scatter
-
-```{r p2-scatter}
-if (exists("bg", envir = e2)) {
-  bg2$evap_pct <- bg2$evap_prop * 100
-  p <- ggplot(bg2, aes(x = mean_tmax, y = evap_pct,
-                        text = paste0("Evap: ", round(evap_pct,1), "%",
-                                      "<br>Tmax: ", round(mean_tmax,1), " C",
-                                      "<br>Income: $", formatC(med_income, big.mark=",")))) +
-    geom_point(alpha = 0.5, color = "#5b8fa8", size = 2) +
-    geom_smooth(method = "loess", se = TRUE, color = "#d73027", fill = "#fc8d59", alpha = 0.15) +
-    theme_minimal(base_size = 12) +
-    labs(x = "Mean summer tmax (C)", y = "Evap. prevalence (%)")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
+    addPolygons(fillColor=~bi_pal(bi_cluster), fillOpacity=0.75, weight=0.4,
+                color="#fff", popup=pop_bi, highlightOptions=hl) |>
+    addLegend(pal=bi_pal, values=~bi_cluster, title="Bivariate LISA", position="bottomright", opacity=0.8)
 }
 ```
 
+Red = the double-exposure hotspots. High evaporative cooling AND high temperature. These are the neighborhoods where the cooling gap is most dangerous.
+
+::: {style="text-align:center; padding-top:8%;"}
+[*When cooling fails*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+:::
+
+::: {.notes}
+Swamp coolers work by evaporating water into dry air. When the monsoon arrives and humidity spikes, that process slows. The cooler keeps running but the house stays hot. This chapter quantifies how often that happens.
 :::
 
 
-# 3 -- Monsoon failure
+## The failure heatmap {.smaller}
 
-<span class="study-num">3</span> **When do swamp coolers stop working?** Evaporative coolers lose effectiveness when humidity rises. We quantified how often this happens using 6 years of hourly weather data.
-
-::: {.panel-tabset}
-
-## Failure heatmap
-
-```{r p3-heatmap}
-if (exists("heatmap_data", envir = e3)) {
+```{r}
+if (exists("heatmap_data", envir=e3)) {
   hd <- e3$heatmap_data
-  p <- ggplot(hd, aes(x = doy, y = hour, fill = fail_prop,
-                       text = paste0("DOY: ", doy, " Hour: ", hour,
-                                     "<br>Temp: ", round(mean_temp, 1), " F",
-                                     "<br>RH: ", round(mean_rh, 1), "%",
-                                     "<br>Failure prob: ", round(fail_prop, 2)))) +
+  p <- ggplot(hd, aes(x=doy, y=hour, fill=fail_prop,
+    text=paste0("DOY: ",doy," Hour: ",hour,"<br>Failure prob: ",round(fail_prop,2),
+                "<br>Temp: ",round(mean_temp,1)," F<br>RH: ",round(mean_rh,1),"%"))) +
     geom_tile() +
-    scale_fill_gradientn(colors = c("#f7f7f7", "#fc8d59", "#b30000"), name = "Failure\nprobability") +
-    scale_y_continuous(breaks = seq(0, 23, 4)) +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid = element_blank()) +
-    labs(x = "Day of year", y = "Hour")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
-} else { cat('<div class="note">Run Script 3 first.</div>') }
+    scale_fill_gradientn(colors=c("#f7f7f7","#fc8d59","#b30000"), name="Failure\nprobability", limits=c(0,1)) +
+    scale_y_continuous(breaks=seq(0,23,4)) +
+    theme_minimal(base_size=14) + theme(panel.grid=element_blank()) +
+    labs(x="Day of year", y="Hour of day")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=list(t=10,r=10,b=50,l=50))
+}
 ```
 
-## Compound exposure map
+Each cell is the probability that a swamp cooler is failing at that hour of that day, averaged over 2018-2023. The monsoon signal lights up in July through September. Hover for temperature, humidity, and failure probability.
 
-```{r p3-map}
-if (exists("bg", envir = e3) && "compound_exposure" %in% colnames(e3$bg)) {
+
+## Compound exposure {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e3) && "compound_exposure" %in% colnames(e3$bg)) {
   bg3 <- e3$bg; sf3 <- st_as_sf(bg3)
   if (is.na(st_crs(sf3))) sf3 <- st_set_crs(sf3, 4326)
+  sf3 <-sf::st_transform(sf3, 4326)
   sf3 <- st_make_valid(sf3)
   cmap(sf3, "compound_exposure", "Compound\nexposure",
-       c("compound_exposure", "evap_prop", "med_income", "pct_minority"),
-       c("Compound exposure", "Evap. prevalence", "Income ($)", "Minority (%)"))
-} else { cat('<div class="note">Run Script 3 first.</div>') }
-```
-
-## Annual failure days
-
-```{r p3-annual}
-if (exists("daily", envir = e3)) {
-  at <- aggregate(failure_day ~ year, data = e3$daily, FUN = sum)
-  colnames(at)[2] <- "failure_days"
-  p <- ggplot(at, aes(x = year, y = failure_days,
-                       text = paste0(year, ": ", failure_days, " days"))) +
-    geom_col(fill = "#d73027", alpha = 0.7, width = 0.6) +
-    geom_hline(yintercept = mean(at$failure_days), linetype = "dashed", color = "grey40") +
-    theme_minimal(base_size = 12) +
-    labs(x = "Year", y = "Failure days (May-Sep)")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
+    c("compound_exposure","evap_prop","med_income","pct_minority"),
+    c("Compound exposure","Evap","Income ($)","Minority (%)"), h="440px")
 }
 ```
+:::
+::: {.column width="45%"}
+Compound exposure = evaporative cooler prevalence multiplied by the number of failure days per summer.
 
-## Demographics
+A neighborhood where 40% of homes use swamp coolers and there are 25 failure days has a compound exposure of 10. That means 40% of households are effectively uncooled for 25 days each summer.
 
-```{r p3-table}
-p3_t2 <- here::here("results", "P3_Table2_demographics_by_exposure.csv")
-if (file.exists(p3_t2)) knitr::kable(read.csv(p3_t2), row.names = FALSE,
-  caption = "High vs. low compound exposure neighborhoods")
+The burden falls on the south and west sides. The same neighborhoods. Every time.
+:::
+::::
+
+
+## Year to year {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("daily", envir=e3)) {
+  at <- aggregate(failure_day ~ year, data=e3$daily, FUN=sum)
+  colnames(at)[2] <- "failure_days"
+  p <- ggplot(at, aes(x=factor(year), y=failure_days,
+    text=paste0(year,": ",failure_days," failure days"))) +
+    geom_col(fill="#c47a4a", alpha=0.75, width=0.6) +
+    geom_hline(yintercept=mean(at$failure_days), linetype="dashed", color="grey50") +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="", y="Failure days per summer")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
+}
 ```
+:::
+::: {.column width="45%"}
+Some years are worse than others. The dashed line is the average.
 
+Monsoon intensity varies. But the trend matters more than any single year. And the trend is the subject of the next chapter.
+:::
+::::
+
+::: {style="text-align:center; padding-top:8%;"}
+[*What the future holds*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+:::
+
+::: {.notes}
+Climate projections from five CMIP6 models under two emissions scenarios. The question: which neighborhoods that are adequately cooled today will become inadequately cooled in 20 years?
 :::
 
 
-# 4 -- Climate projections
+## Current vs. projected {.smaller}
 
-<span class="study-num">4</span> **What happens as Tucson gets hotter?** Using CMIP6 climate projections (SSP2-4.5 and SSP5-8.5), we estimated how cooler failure days will change through the 2060s.
-
-::: {.panel-tabset}
-
-## Projections
-
-```{r p4-fan}
-if (exists("ribbon_df", envir = e4) && exists("baseline_failure_days", envir = e4)) {
-  rd <- e4$ribbon_df; bfd <- e4$baseline_failure_days
-  rd$ssp_label <- ifelse(rd$ssp == "ssp245", "SSP2-4.5", "SSP5-8.5")
-
-  p <- ggplot(rd, aes(x = period_year, text = paste0("Period: ", period_year,
-                        "<br>Scenario: ", ssp_label,
-                        "<br>Median: ", round(median, 1),
-                        "<br>Range: ", round(lo, 1), " - ", round(hi, 1)))) +
-    geom_ribbon(aes(ymin = lo, ymax = hi, fill = ssp_label), alpha = 0.2) +
-    geom_line(aes(y = median, color = ssp_label), linewidth = 1) +
-    geom_hline(yintercept = bfd, linetype = "dashed", color = "grey40") +
-    scale_fill_manual(values = c("SSP2-4.5" = "#2c7bb6", "SSP5-8.5" = "#d73027")) +
-    scale_color_manual(values = c("SSP2-4.5" = "#2c7bb6", "SSP5-8.5" = "#d73027")) +
-    theme_minimal(base_size = 12) +
-    labs(x = "", y = "Failure days per summer", fill = "", color = "")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
-} else { cat('<div class="note">Run Script 4 first.</div>') }
-```
-
-## Threshold crossing
-
-```{r p4-bars}
-if (exists("crossing_summary", envir = e4)) {
-  cs <- e4$crossing_summary
-  cs_future <- cs[cs$ssp != "observed", ]
-  cs_future$ssp_label <- ifelse(cs_future$ssp == "ssp245", "SSP2-4.5", "SSP5-8.5")
-  cs_future$period <- factor(cs_future$period, levels = c("near", "mid", "far"))
-  baseline_pct <- cs$pct_above[cs$ssp == "observed"]
-
-  p <- ggplot(cs_future, aes(x = period, y = pct_above, fill = ssp_label,
-                              text = paste0(ssp_label, " ", period,
-                                            "<br>Above threshold: ", pct_above, "%",
-                                            "<br>Newly above: ", pct_newly_above, "%"))) +
-    geom_col(position = "dodge", width = 0.6, alpha = 0.8) +
-    geom_hline(yintercept = baseline_pct, linetype = "dashed", color = "grey40") +
-    scale_fill_manual(values = c("SSP2-4.5" = "#2c7bb6", "SSP5-8.5" = "#d73027")) +
-    scale_x_discrete(labels = c("2030s", "2040s", "2060s")) +
-    theme_minimal(base_size = 12) +
-    labs(x = "", y = "% block groups above threshold", fill = "")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
-}
-```
-
-## Projected exposure map
-
-```{r p4-map}
-if (exists("bg", envir = e4) && "exposure_ssp585_far" %in% colnames(e4$bg)) {
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e4) && "exposure_ssp585_far" %in% colnames(e4$bg)) {
   bg4 <- e4$bg; sf4 <- st_as_sf(bg4)
   if (is.na(st_crs(sf4))) sf4 <- st_set_crs(sf4, 4326)
+  sf4 <-sf::st_transform(sf4, 4326)
   sf4 <- st_make_valid(sf4)
-  cmap(sf4, "exposure_ssp585_far", "Projected exposure\n(2060s SSP5-8.5)",
-       c("exposure_current", "exposure_ssp585_far", "evap_prop", "med_income"),
-       c("Current exposure", "2060s exposure", "Evap. prevalence", "Income ($)"))
-} else { cat('<div class="note">Run Script 4 first.</div>') }
-```
-
-## Current vs future
-
-```{r p4-current}
-if (exists("bg", envir = e4) && "exposure_current" %in% colnames(e4$bg)) {
-  cmap(sf4, "exposure_current", "Current exposure",
-       c("exposure_current", "exposure_ssp585_far", "evap_prop"),
-       c("Current", "2060s SSP5-8.5", "Evap. prevalence"))
+  lims <- range(c(bg4$exposure_current, bg4$exposure_ssp585_far), na.rm=TRUE)
+  pal_c <- colorNumeric(pal4, domain=lims)
+  pop4 <- sprintf("<div style='font-family:Figtree;font-size:13px'>Current: <strong>%.1f</strong><br>2060s: <strong>%.1f</strong><br>Evap: %s%%</div>",
+    bg4$exposure_current, bg4$exposure_ssp585_far, round(bg4$evap_prop*100,1))
+  leaflet(sf4, width="100%", height="440px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor=~pal_c(exposure_current), fillOpacity=0.75, weight=0.4,
+                color="#fff", popup=pop4, highlightOptions=hl) |>
+    addLegend(pal=pal_c, values=~exposure_current, title="Current", position="bottomright", opacity=0.8)
 }
 ```
+[Compound exposure today.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e4) && "exposure_ssp585_far" %in% colnames(e4$bg)) {
+  pal_f <- colorNumeric(pal4, domain=lims)
+  leaflet(sf4, width="100%", height="440px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor=~pal_f(exposure_ssp585_far), fillOpacity=0.75, weight=0.4,
+                color="#fff", popup=pop4, highlightOptions=hl) |>
+    addLegend(pal=pal_f, values=~exposure_ssp585_far, title="2060s SSP5-8.5", position="bottomright", opacity=0.8)
+}
+```
+[Projected under high emissions (SSP5-8.5, 2060s). Same color scale.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::::
 
+::: {.notes}
+Both maps use the same color scale so you can compare directly. The red areas expand. Neighborhoods that are currently borderline become fully inadequate.
 :::
 
 
-# 5 -- Health outcomes
+## Threshold crossing {.smaller}
 
-<span class="study-num">5</span> **Do heat-related EMS calls cluster in neighborhoods with more swamp coolers?** We linked heat-related health data to cooling type, temperature, and demographics to test whether inadequate cooling translates to worse health outcomes.
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("crossing_summary", envir=e4)) {
+  cs <- e4$crossing_summary; cs_f <- cs[cs$ssp != "observed",]
+  cs_f$ssp_label <- ifelse(cs_f$ssp=="ssp245","SSP2-4.5","SSP5-8.5")
+  cs_f$period <- factor(cs_f$period, levels=c("near","mid","far"))
+  bl <- cs$pct_above[cs$ssp=="observed"]
+  p <- ggplot(cs_f, aes(x=period, y=pct_above, fill=ssp_label,
+    text=paste0(ssp_label,"<br>",pct_above,"% above<br>",pct_newly_above,"% newly above"))) +
+    geom_col(position="dodge", width=0.6, alpha=0.8) +
+    geom_hline(yintercept=bl, linetype="dashed", color="grey50") +
+    scale_fill_manual(values=c("SSP2-4.5"="#2c7bb6","SSP5-8.5"="#d73027")) +
+    scale_x_discrete(labels=c("2030s","2040s","2060s")) +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="", y="% block groups above threshold", fill="")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
+}
+```
+:::
+::: {.column width="45%"}
+The dashed line is where we are today. The bars show where we are headed.
 
-::: {.panel-tabset}
+Under high emissions, the percentage of block groups exceeding the compound exposure threshold grows substantially by the 2060s.
 
-## Call rate map
+These are not abstract numbers. Each percentage point represents real neighborhoods with real families whose cooling will become inadequate.
+:::
+::::
 
-```{r p5-map}
-if (exists("bg", envir = e5) && "call_rate" %in% colnames(e5$bg)) {
+
+## The trajectory {.smaller}
+
+```{r}
+if (exists("ribbon_df", envir=e4) && exists("baseline_failure_days", envir=e4)) {
+  rd <- e4$ribbon_df; bfd <- e4$baseline_failure_days
+  rd$ssp_label <- ifelse(rd$ssp=="ssp245","SSP2-4.5","SSP5-8.5")
+  p <- ggplot(rd, aes(x=period_year)) +
+    geom_ribbon(aes(ymin=lo, ymax=hi, fill=ssp_label), alpha=0.2) +
+    geom_line(aes(y=median, color=ssp_label), linewidth=1) +
+    geom_hline(yintercept=bfd, linetype="dashed", color="grey50") +
+    scale_fill_manual(values=c("SSP2-4.5"="#2c7bb6","SSP5-8.5"="#d73027")) +
+    scale_color_manual(values=c("SSP2-4.5"="#2c7bb6","SSP5-8.5"="#d73027")) +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="", y="Failure days per summer", fill="", color="")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
+}
+```
+
+Projected cooler failure days per summer. Shaded bands = model uncertainty (10th-90th percentile across 5 CMIP6 models). Dashed line = observed baseline. The divergence between SSP2-4.5 (blue) and SSP5-8.5 (red) widens with time.
+
+
+[*Who gets sick*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+
+::: {.notes}
+The question underneath all of this. Does inadequate cooling actually make people sick? We linked heat-related EMS calls to cooling type, temperature, and demographics.
+:::
+
+
+## Call rates and cooling {.smaller}
+
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e5) && "call_rate" %in% colnames(e5$bg)) {
   bg5 <- e5$bg; sf5 <- st_as_sf(bg5)
   if (is.na(st_crs(sf5))) sf5 <- st_set_crs(sf5, 4326)
+  sf5 <-sf::st_transform(sf5, 4326)
   sf5 <- st_make_valid(sf5)
-  cmap(sf5, "call_rate", "Call rate\n(per 1000 days)",
-       c("call_rate", "evap_prop", "med_income", "pct_minority"),
-       c("Call rate", "Evap. prevalence", "Income ($)", "Minority (%)"))
-} else { cat('<div class="note">Run Script 5 first.</div>') }
+  cmap(sf5, "call_rate", "Call rate",
+    c("call_rate","evap_prop","med_income","pct_minority"),
+    c("Call rate","Evap","Income ($)","Minority (%)"), h="440px")
+}
 ```
+[Heat-related call rate per 1000 days.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e5) && "call_rate" %in% colnames(e5$bg)) {
+  cmap(sf5, "evap_prop", "Evap. cooling",
+    c("evap_prop","call_rate","med_income"),
+    c("Evap","Call rate","Income ($)"), h="440px")
+}
+```
+[Evaporative cooler prevalence. Compare the patterns.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::::
 
-## Calls vs evap
 
-```{r p5-scatter}
-if (exists("bg", envir = e5) && "call_rate" %in% colnames(e5$bg)) {
+## The relationship {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e5) && "call_rate" %in% colnames(e5$bg)) {
   bg5$evap_pct <- bg5$evap_prop * 100
-  p <- ggplot(bg5, aes(x = evap_pct, y = call_rate,
-                        text = paste0("Evap: ", round(evap_pct, 1), "%",
-                                      "<br>Call rate: ", round(call_rate, 2),
-                                      "<br>Income: $", formatC(med_income, big.mark = ",")))) +
-    geom_point(alpha = 0.5, color = "#5b8fa8", size = 2) +
-    geom_smooth(method = "lm", se = TRUE, color = "#d73027", fill = "#fc8d59", alpha = 0.15) +
-    theme_minimal(base_size = 12) +
-    labs(x = "Evap. cooler prevalence (%)", y = "Heat-related call rate (per 1000 days)")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
+  p <- ggplot(bg5, aes(x=evap_pct, y=call_rate,
+    text=paste0("Evap: ",round(evap_pct,1),"%<br>Call rate: ",round(call_rate,2),
+                "<br>Income: $",formatC(med_income,big.mark=",")))) +
+    geom_point(alpha=0.4, color="#5b8fa8", size=2) +
+    geom_smooth(method="lm", se=TRUE, color="#d73027", fill="#fc8d59", alpha=0.15, linewidth=0.8) +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="Evap. cooler prevalence (%)", y="Heat-related call rate (per 1000 days)")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
 }
 ```
+:::
+::: {.column width="45%"}
+Neighborhoods with more swamp coolers have higher rates of heat-related calls.
 
-## By quartile
+This is an ecological association, not proof of individual-level causation. But the gradient is clear. And it persists after controlling for income, demographics, and renter status in the regression models.
+:::
+::::
 
-```{r p5-quartile}
-if (exists("bg", envir = e5) && "call_rate" %in% colnames(e5$bg)) {
-  bg5$evap_q <- cut(bg5$evap_prop,
-                     breaks = quantile(bg5$evap_prop, probs = 0:4/4),
-                     labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)"),
-                     include.lowest = TRUE)
-  p <- ggplot(bg5, aes(x = evap_q, y = call_rate, fill = evap_q,
-                        text = paste0("Quartile: ", evap_q,
-                                      "<br>Call rate: ", round(call_rate, 2)))) +
-    geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
-    scale_fill_manual(values = c("#abd9e9", "#fee090", "#fc8d59", "#d73027"), guide = "none") +
-    theme_minimal(base_size = 12) +
-    labs(x = "Evap. prevalence quartile", y = "Call rate (per 1000 days)")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
-}
-```
 
-## Failure days
+## Failure days and health {.smaller}
 
-```{r p5-failure}
-if (exists("daily_calls", envir = e5) && "failure_day" %in% colnames(e5$daily_calls)) {
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+if (exists("daily_calls", envir=e5) && "failure_day" %in% colnames(e5$daily_calls)) {
   dc <- e5$daily_calls
-  dc$label <- ifelse(dc$failure_day == 1, "Failure day", "Non-failure day")
-  p <- ggplot(dc, aes(x = label, y = calls, fill = label,
-                       text = paste0(label, "<br>Calls: ", calls))) +
-    geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
-    scale_fill_manual(values = c("Non-failure day" = "#2c7bb6", "Failure day" = "#d73027"), guide = "none") +
-    theme_minimal(base_size = 12) +
-    labs(x = "", y = "Daily heat-related calls (city-wide)")
-  ggplotly(p, tooltip = "text") |> layout(hoverlabel = list(bgcolor = "#2c2418", font = list(color = "#f5f0e8")))
+  dc$label <- ifelse(dc$failure_day==1, "Failure day", "Non-failure day")
+  p <- ggplot(dc, aes(x=label, y=calls, fill=label,
+    text=paste0(label,"<br>Calls: ",calls))) +
+    geom_boxplot(alpha=0.7, outlier.size=0.8) +
+    scale_fill_manual(values=c("Non-failure day"="#7aab85","Failure day"="#d73027"), guide="none") +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="", y="Daily calls (city-wide)")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
 }
 ```
-
-## Model results
-
-```{r p5-tables}
-p5_t2 <- here::here("results", "P5_Table2_NB_regression.csv")
-p5_t4 <- here::here("results", "P5_Table4_interaction_model.csv")
-if (file.exists(p5_t2)) {
-  cat("### Negative binomial regression\n\n")
-  knitr::kable(read.csv(p5_t2), row.names = FALSE,
-    caption = "Predictors of heat-related call counts (IRR = incidence rate ratio)")
-}
-if (file.exists(p5_t4)) {
-  cat("\n\n### Interaction: failure day x evap prevalence\n\n")
-  knitr::kable(read.csv(p5_t4), row.names = FALSE,
-    caption = "Does the health impact of cooler-failure days amplify in high-evap neighborhoods?")
+:::
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e5) && "call_rate" %in% colnames(e5$bg)) {
+  bg5$evap_q <- cut(bg5$evap_prop, breaks=quantile(bg5$evap_prop, probs=0:4/4),
+    labels=c("Q1","Q2","Q3","Q4"), include.lowest=TRUE)
+  p <- ggplot(bg5, aes(x=evap_q, y=call_rate, fill=evap_q,
+    text=paste0(evap_q,"<br>Rate: ",round(call_rate,2)))) +
+    geom_boxplot(alpha=0.7, outlier.size=0.8) +
+    scale_fill_manual(values=c("#abd9e9","#fee090","#fc8d59","#d73027"), guide="none") +
+    theme_minimal(base_size=14) + theme(panel.grid.minor=element_blank()) +
+    labs(x="Evap. prevalence quartile", y="Call rate (per 1000 days)")
+  ggplotly(p, tooltip="text") |> layout(hoverlabel=plh, paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", font=list(family="Figtree",size=13), margin=plm)
 }
 ```
+:::
+::::
 
+The city sees more heat-related calls on days when swamp coolers are failing (left). And neighborhoods in the highest evaporative cooling quartile have the highest call rates (right).
+
+
+## The interaction {.smaller}
+
+```{r}
+f <- here::here("results", "P5_Table4_interaction_model.csv")
+if (file.exists(f)) knitr::kable(read.csv(f), row.names=FALSE,
+  caption="Interaction model: is the health impact of cooler-failure days amplified in high-evap neighborhoods? IRR = incidence rate ratio.")
+```
+
+The interaction term (failure_day x evap prevalence) tests whether the health impact of a cooler-failure day is disproportionately concentrated in neighborhoods with more swamp coolers. A significant positive interaction means the cooling gap translates directly into a health gap.
+
+::: {.notes}
+This is the key result of the health paper. The interaction term closes the loop from cooling type to climate conditions to health outcomes.
 :::
 
 
-# About
+## {background-color="#e4f0e7"}
 
-This is the first household-level spatial dataset of evaporative cooler adoption in a US city. What you see here are block group summaries, not individual household data. Five studies examining cooling equity, urban heat exposure, monsoon vulnerability, climate adaptation, and health outcomes in Tucson.
+::: {style="text-align:center; padding-top:10%;"}
+[The evaporative cooler is not the cause of this inequality.]{style="font-family:Fraunces; font-size:1.6em; color:#2c2418; font-weight:500;"}
 
-::: {.footer}
-Data Diversity Lab, University of Arizona. `r Sys.Date()`.
+[It is its residue.]{style="font-family:Fraunces; font-size:1.6em; color:#c47a4a; font-style:italic;"}
+
+<br>
+
+[Data Diversity Lab | University of Arizona]{style="font-family:Figtree; font-size:0.9em; color:#8a7d6b;"}
 :::

@@ -1,0 +1,101 @@
+/*-- scss:defaults --*/
+$body-bg: #ffffff;
+$body-color: #2c2418;
+$link-color: #c47a4a;
+$font-family-sans-serif: 'Figtree', sans-serif;
+$presentation-heading-font: 'Fraunces', serif;
+$presentation-heading-color: #2c2418;
+$presentation-font-size-root: 28px;
+
+/*-- scss:rules --*/
+.reveal {
+  font-weight: 300;
+}
+
+.reveal h1, .reveal h2, .reveal h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.reveal h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.reveal .slide-number {
+  font-family: 'Figtree', sans-serif;
+  font-size: 0.5em;
+  color: #8a7d6b;
+}
+
+.reveal .progress span {
+  background: #7aab85;
+}
+
+.reveal .controls {
+  color: #7aab85;
+}
+
+.reveal section.has-dark-background .slide-number {
+  color: rgba(255,255,255,0.5);
+}
+
+.reveal table {
+  font-size: 0.65em;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.reveal table th {
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a7d6b;
+  border-bottom: 2px solid #e2ddd6;
+  background: #f8faf8;
+  padding: 0.4em 0.5em;
+}
+
+.reveal table td {
+  padding: 0.35em 0.5em;
+  border-bottom: 1px solid #e2ddd6;
+  color: #5a4d3e;
+}
+
+.reveal table tr:hover td {
+  background: #e4f0e7;
+}
+
+.reveal .leaflet-container {
+  border-radius: 10px;
+  border: 1px solid #e2ddd6;
+}
+
+.reveal .js-plotly-plot {
+  border-radius: 10px;
+}
+
+.reveal .plotly .modebar {
+  display: none !important;
+}
+
+.reveal p, .reveal li {
+  color: #5a4d3e;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.reveal strong {
+  color: #2c2418;
+  font-weight: 500;
+}
+
+.reveal .smaller p, .reveal .smaller li {
+  font-size: 0.7em;
+}
+
+.quarto-title > h1.title {
+  opacity: 0 !important;
+}
