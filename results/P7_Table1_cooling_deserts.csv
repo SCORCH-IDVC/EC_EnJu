@@ -1,0 +1,6 @@
+"variable","desert_mean","city_mean","wilcox_p"
+"Evap. prevalence",0.59,0.24,3.35e-22
+"Median income ($)",30031.85,63158.25,1e-20
+"Minority (%)",0.72,0.47,2.88e-13
+"Renter (%)",0.34,0.3,0.000428
+"Year built",1965.11,1978.32,1.23e-07

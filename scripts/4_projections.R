@@ -18,7 +18,6 @@ UrbanAreas <- st_make_valid(UrbanAreas)
 bg_centroids <- st_centroid(bg_sf)
 inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
 bg_sf <- bg_sf[inside, ]
-
 bg <- data.frame(bg_sf)
 
 ## Rename columns to match the simulated dataset
@@ -152,7 +151,6 @@ proj$date <- as.Date(proj$date)
 cat("Projection rows loaded:", nrow(proj), "\n")
 
 # 4. COMPUTE PROJECTED COOLER FAILURE DAYS
-
 proj_tmax <- proj[proj$variable == "tasmax", c("model", "ssp", "period", "year", "date", "value")]
 proj_hurs <- proj[proj$variable == "hurs", c("model", "ssp", "period", "year", "date", "value")]
 colnames(proj_tmax)[6] <- "tasmax_K"

@@ -1,0 +1,7 @@
+"variable","high_burden_mean","low_burden_mean","wilcox_p"
+"Evap. prevalence",0.24,0.25,0.862
+"Median income ($)",63576.95,62021.06,0.953
+"Minority (%)",0.46,0.49,0.203
+"Renter (%)",0.29,0.3,0.929
+"Year built",1976.56,1979.64,0.282
+"Current call rate",0,0,NA

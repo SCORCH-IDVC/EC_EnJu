@@ -43,6 +43,22 @@ source(here("scripts", "5_health_outcomes.R"), local = (e5 <- new.env()))
 save(list = ls(e5), envir = e5, file = here("docs", "ws_5_health.RData"))
 cat("Workspace saved: ws_5_health.RData\n")
 
+## ---- Script 6: Health Projections ----
+cat("\n==============================\n")
+cat("Running Script 6: Health Projections\n")
+cat("==============================\n")
+source(here("scripts", "6_projected_health.R"), local = (e6 <- new.env()))
+save(list = ls(e6), envir = e6, file = here("docs", "ws_6_projected_health.RData"))
+cat("Workspace saved: ws_6_projected_health.RData\n")
+
+## ---- Script 7: MISC ----
+cat("\n==============================\n")
+cat("Running Script 7: MISC\n")
+cat("==============================\n")
+source(here("scripts", "7_synthesis_policy.R"), local = (e7 <- new.env()))
+save(list = ls(e7), envir = e7, file = here("docs", "ws_7_synthesis_policy.RData"))
+cat("Workspace saved: ws_7_synthesis_policy.RData\n")
+
 ## ---- Render website ----
 cat("\n==============================\n")
 cat("Rendering website\n")

@@ -17,8 +17,8 @@ UrbanAreas <- st_make_valid(UrbanAreas)
 bg_centroids <- st_centroid(bg_sf)
 inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
 bg_sf <- bg_sf[inside, ]
-
 bg <- data.frame(bg_sf)
+
 colnames(bg)[colnames(bg) == "geoid20"]  <- "GEOID"
 colnames(bg)[colnames(bg) == "evp_prp"]  <- "evap_prop"
 colnames(bg)[colnames(bg) == "med_inc"]  <- "med_income"
@@ -46,10 +46,7 @@ cat("Health records:", nrow(health), "\n")
 cat("Date range:", as.character(range(health$date)), "\n")
 cat("Total calls:", sum(health$calls), "\n")
 
-# ============================================================
-# 3. LOAD WEATHER DATA (from Paper 3)
-# ============================================================
-
+# 3. LOAD WEATHER DATA (from # 3)
 wx_path <- here("data", "weather", "tucson_hourly.csv")
 if (!file.exists(wx_path)) {
   stop("Run Paper 3 script first to download weather data.")
@@ -76,9 +73,7 @@ daily_wx$failure_day <- as.integer(daily_wx$failure_hours > 0)
 
 cat("Daily weather records:", nrow(daily_wx), "\n")
 
-# ============================================================
 # 4. CROSS-SECTIONAL ANALYSIS (block group level)
-# ============================================================
 # Question: Do block groups with higher evap prevalence have
 # higher total heat-related call rates?
 
@@ -125,9 +120,7 @@ print(cor_health)
 
 write.csv(cor_health, here("results", "P5_Table1_health_correlations.csv"), row.names = FALSE)
 
-# ============================================================
 # 5. NEGATIVE BINOMIAL REGRESSION (cross-sectional)
-# ============================================================
 # Model: total calls ~ evap_prop + income + minority + renter
 # Offset by log(n_days) to account for observation period.
 # Use negative binomial to handle overdispersion.
@@ -158,9 +151,7 @@ print(coef_nb)
 
 write.csv(coef_nb, here("results", "P5_Table2_NB_regression.csv"), row.names = FALSE)
 
-# ============================================================
 # 6. DAILY TIME-SERIES ANALYSIS
-# ============================================================
 # Question: Are heat-related calls higher on cooler-failure days?
 # And does evap prevalence modify this effect?
 #
@@ -210,9 +201,7 @@ print(ts_table)
 
 write.csv(ts_table, here("results", "P5_Table3_timeseries_results.csv"), row.names = FALSE)
 
-# ============================================================
 # 7. INTERACTION: FAILURE DAY x EVAP PREVALENCE
-# ============================================================
 # Question: Is the health impact of a cooler-failure day
 # amplified in neighborhoods with more evap coolers?
 #
@@ -261,10 +250,7 @@ print(int_table)
 
 write.csv(int_table, here("results", "P5_Table4_interaction_model.csv"), row.names = FALSE)
 
-# ============================================================
 # 8. SPATIAL AUTOCORRELATION CHECK
-# ============================================================
-
 coords_sp <- cbind(bg$lon, bg$lat)
 nb <- knn2nb(knearneigh(coords_sp, k = 5))
 lw <- nb2listw(nb, style = "W")
@@ -274,10 +260,7 @@ cat("\n=== SPATIAL AUTOCORRELATION ===\n")
 cat("Moran's I on call rate:", round(moran_calls$estimate[1], 3), "\n")
 cat("p-value:", signif(moran_calls$p.value, 3), "\n")
 
-# ============================================================
 # 9. FIGURES
-# ============================================================
-
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 
 bg_sf2 <- st_as_sf(bg)

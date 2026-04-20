@@ -18,7 +18,6 @@ UrbanAreas <- st_make_valid(UrbanAreas)
 bg_centroids <- st_centroid(bg_sf)
 inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
 bg_sf <- bg_sf[inside, ]
-
 bg <- data.frame(bg_sf)
 
 ## Rename columns to match the simulated dataset
@@ -43,7 +42,6 @@ bg_sf <- st_make_valid(bg_sf)
 ## We can also download data from the AZMET raw data archive:
 ## https://cals.arizona.edu/azmet/. For now, we pull NWS 
 ## Tucson (TUS) via the Iowa Environmental Mesonet (IEM) ASOS archive.
-
 dir.create(here("data", "weather"), recursive = TRUE, showWarnings = FALSE)
 wx_path <- here("data", "weather", "tucson_hourly.csv")
 
@@ -88,7 +86,7 @@ if (!file.exists(wx_path)) {
     ## Remove rows with missing temp or RH
     wx <- wx[!is.na(wx$tmpf) & !is.na(wx$relh), ]
     
-    ## Convert temp to Celsius for consistency
+    ## Convert temp to C for consistency
     wx$temp_c <- (wx$tmpf - 32) * 5 / 9
     
     write.csv(wx, wx_path, row.names = FALSE)
@@ -211,8 +209,6 @@ cat("Compound exposure range:", round(range(bg$compound_exposure), 1), "\n")
 
 
 # 6. TABLE 2: DEMOGRAPHICS OF HIGH VS LOW EXPOSURE
-
-
 high_exp <- bg[bg$exposure_q == "Q4 (highest)", ]
 low_exp  <- bg[bg$exposure_q == "Q1 (lowest)", ]
 
@@ -236,9 +232,7 @@ print(table2)
 
 write.csv(table2, here("results", "P3_Table2_demographics_by_exposure.csv"), row.names = FALSE)
 
-
 # 7. SPATIAL WEIGHTS AND MORAN'S I ON COMPOUND EXPOSURE
-
 coords <- cbind(bg$lon, bg$lat)
 nb <- knn2nb(knearneigh(coords, k = 5))
 lw <- nb2listw(nb, style = "W")
@@ -249,7 +243,6 @@ cat("p-value:", signif(moran_exp$p.value, 3), "\n")
 
 
 # 8. FIGURES
-
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 
 ## ---- Figure 1: Heatmap of hourly conditions across summer ----

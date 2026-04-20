@@ -20,7 +20,6 @@ UrbanAreas <- st_make_valid(UrbanAreas)
 bg_centroids <- st_centroid(bg_sf)
 inside <- st_intersects(bg_centroids, st_union(UrbanAreas), sparse = FALSE)[, 1]
 bg_sf <- bg_sf[inside, ]
-
 bg <- data.frame(bg_sf)
 
 ## Rename columns to match the simulated dataset
@@ -42,7 +41,6 @@ bg$lat <- coords[, 2]
 bg_sf <- st_make_valid(bg_sf)
 
 # 2. DOWNLOAD SUMMER TEMPERATURE (PRISM tmax)
-
 dir.create(here("data", "rasters"), recursive = TRUE, showWarnings = FALSE)
 lst_path <- here("data", "rasters", "tucson_tmax_summer.tif")
 
@@ -76,7 +74,6 @@ if (!file.exists(lst_path)) {
 cat("Temperature raster:", lst_path, "\n")
 
 # 3. ZONAL STATISTICS
-
 tmax_r <- rast(lst_path)
 
 ## Reproject block groups to match raster CRS
@@ -105,7 +102,7 @@ if (file.exists(ndvi_path)) {
 
 has_ndvi <- !all(is.na(bg$mean_ndvi))
 
-## Drop block groups with NA tmax (keep NDVI NAs for now, handled per-analysis)
+## Drop block groups with NA tmax
 bg <- bg[!is.na(bg$mean_tmax), ]
 cat("Block groups with valid tmax:", nrow(bg), "\n")
 if (has_ndvi) cat("Block groups with valid NDVI:", sum(!is.na(bg$mean_ndvi)), "\n")
@@ -130,7 +127,7 @@ vars <- c("mean_tmax", "med_income", "pct_minority", "pct_renter")
 var_labels <- c("Mean summer tmax (C)", "Median income ($)",
                 "Minority (%)", "Renter (%)")
 
-## Add NDVI to table if available
+## Add NDVI to table
 vars <- c(vars, "mean_ndvi")
 var_labels <- c(var_labels, "Mean NDVI")
 
@@ -160,10 +157,8 @@ write.csv(table1, here("results", "P2_Table1_quartile_tmax.csv"), row.names = FA
 cor_vars <- c("mean_tmax", "med_income", "pct_minority", "pct_renter")
 cor_labels <- c("Mean summer tmax", "Median income", "% Minority", "% Renter")
 
-
 cor_vars <- c(cor_vars, "mean_ndvi")
 cor_labels <- c(cor_labels, "Mean NDVI")
-
 
 cor_results <- data.frame(
   variable = cor_labels,
@@ -219,7 +214,6 @@ print(table(bg$bi_cluster))
 cat("Double-exposure hotspots (High evap / Hot):", sum(bg$bi_cluster == "High evap / Hot"), "\n")
 
 # 7. GLM: PREDICTORS OF EVAP COOLER PREVALENCE
-
 bg$z_tmax   <- scale(bg$mean_tmax)
 bg$z_income <- scale(bg$med_income)
 bg$z_renter <- scale(bg$pct_renter)
@@ -238,9 +232,8 @@ coef_table <- data.frame(
   p = signif(summary(m1)$coefficients[, 4], 3)
 )
 
-## GLM with NDVI added to test vegetation as independent predictor
+## GLM with NDVI
 bg$z_ndvi <- scale(bg$mean_ndvi)
-
 m2 <- glm(evap_prop ~ z_tmax + z_ndvi + z_income + z_renter,
           family = quasibinomial, data = bg)
 
@@ -297,10 +290,8 @@ compare_labels <- c("Evap. prevalence", "Mean summer tmax (C)",
                     "Renter (%)", "Year built")
 
 ## Add NDVI to hotspot comparison
-
 compare_vars <- c(compare_vars, "mean_ndvi")
 compare_labels <- c(compare_labels, "Mean NDVI (tree cover)")
-
 
 hotspot_table <- data.frame(
   variable = compare_labels,
@@ -319,7 +310,6 @@ print(hotspot_table)
 write.csv(hotspot_table, here("results", "P2_TableS2_hotspot_demographics.csv"), row.names = FALSE)
 
 ## Plot distributions
-
 hotspot$group <- "Hotspot"
 non_hotspot$group <- "Non-hotspot"
 combined <- rbind(hotspot, non_hotspot)
@@ -365,7 +355,6 @@ print(fig_hist)
 dev.off()
 
 # 9. FIGURES
-
 dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 
 bg_sf2 <- st_as_sf(bg)
@@ -448,7 +437,6 @@ fig2 <- ggplot(bg_sf2) +
   labs(title = "b")
 
 ## ---- Figure 3: NDVI choropleth map ----
-
 bg_sf2$mean_ndvi <- bg$mean_ndvi
 
 fig3_ndvi <- ggplot(bg_sf2) +

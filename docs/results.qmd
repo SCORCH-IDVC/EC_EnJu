@@ -1,11 +1,11 @@
 ---
-title: "The Geography of Inadequate Cooling"
-subtitle: ""
+title: ""
 format:
   html:
     theme: [default, custom.scss]
     self-contained: true
     navigation-mode: linear
+    title-block-style: none
     include-in-header:
       text: |
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=Figtree:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -27,6 +27,8 @@ e2 <- new.env(); if (file.exists("ws_2_heat.RData")) load("ws_2_heat.RData", env
 e3 <- new.env(); if (file.exists("ws_3_monsoon.RData")) load("ws_3_monsoon.RData", envir = e3)
 e4 <- new.env(); if (file.exists("ws_4_projections.RData")) load("ws_4_projections.RData", envir = e4)
 e5 <- new.env(); if (file.exists("ws_5_health.RData")) load("ws_5_health.RData", envir = e5)
+e6 <- new.env(); if (file.exists("ws_6_projected_health.RData")) load("ws_6_projected_health.RData", envir = e6)
+e7 <- new.env(); if (file.exists("ws_7_synthesis.RData")) load("ws_7_synthesis.RData", envir = e7)
 if (!exists("bg_sf", envir = e1) && file.exists("workspace.RData")) load("workspace.RData", envir = e1)
 
 hl <- highlightOptions(weight = 2, color = "#2c2418", fillOpacity = 0.85)
@@ -65,6 +67,8 @@ This is a story about swamp coolers. About who depends on them, where they fail,
 
 
 We start with the most basic questions. Where are the swamp coolers? Who lives in those neighborhoods?
+
+<hr style="border: none; border-top: 1px solid #e2ddd6; margin: 2rem 0;">
 
 ## Where the swamp coolers are {.smaller}
 
@@ -601,6 +605,218 @@ The interaction term (failure_day x evap prevalence) tests whether the health im
 This is the key result of the health paper. The interaction term closes the loop from cooling type to climate conditions to health outcomes.
 :::
 
+
+::: {style="text-align:center; padding-top:8%;"}
+[*The health burden ahead*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+:::
+
+We know that neighborhoods with more swamp coolers have more heat-related calls today. We know that climate change will increase the number of days those coolers fail. The next question follows directly: how much worse will the health burden get, and who will carry it?
+
+
+## Projected health outcomes {.smaller}
+
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e6) && "call_rate" %in% colnames(e6$bg) &&
+    "proj_rate_ssp585_far" %in% colnames(e6$bg)) {
+  bg6 <- e6$bg; sf6 <- st_as_sf(bg6)
+  if (is.na(st_crs(sf6))) sf6 <- st_set_crs(sf6, 4326)
+  sf6 <- sf::st_transform(sf6, 4326)
+  sf6 <- st_make_valid(sf6)
+  lims6 <- range(c(bg6$call_rate, bg6$proj_rate_ssp585_far), na.rm = TRUE)
+  pal6a <- colorNumeric(pal4, domain = lims6)
+  pop6 <- sprintf("<div style='font-family:Figtree;font-size:13px'>Current rate: <strong>%.2f</strong><br>2060s rate: <strong>%.2f</strong><br>Evap: %s%%</div>",
+    bg6$call_rate, bg6$proj_rate_ssp585_far, round(bg6$evap_prop * 100, 1))
+  leaflet(sf6, width = "100%", height = "420px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor = ~pal6a(call_rate), fillOpacity = 0.75, weight = 0.4,
+                color = "#fff", popup = pop6, highlightOptions = hl) |>
+    addLegend(pal = pal6a, values = ~call_rate, title = "Current\ncall rate",
+              position = "bottomright", opacity = 0.8)
+}
+```
+[Heat-related call rate today.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::: {.column width="50%"}
+```{r}
+if (exists("bg", envir=e6) && "proj_rate_ssp585_far" %in% colnames(e6$bg)) {
+  pal6b <- colorNumeric(pal4, domain = lims6)
+  leaflet(sf6, width = "100%", height = "420px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor = ~pal6b(proj_rate_ssp585_far), fillOpacity = 0.75, weight = 0.4,
+                color = "#fff", popup = pop6, highlightOptions = hl) |>
+    addLegend(pal = pal6b, values = ~proj_rate_ssp585_far, title = "2060s\ncall rate",
+              position = "bottomright", opacity = 0.8)
+}
+```
+[Projected under SSP5-8.5, 2060s. Same color scale.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::::
+
+
+## Excess calls and growing disparities {.smaller}
+
+:::: {.columns}
+::: {.column width="50%"}
+```{r}
+f <- here::here("results", "P6_Table1_projected_health_burden.csv")
+if (file.exists(f)) {
+  t6 <- read.csv(f)
+  t6_f <- t6[t6$ssp != "observed", ]
+  t6_f$ssp_label <- ifelse(t6_f$ssp == "ssp245", "SSP2-4.5", "SSP5-8.5")
+  t6_f$period <- factor(t6_f$period, levels = c("near", "mid", "far"))
+  p <- ggplot(t6_f, aes(x = period, y = total_excess_calls, fill = ssp_label,
+    text = paste0(ssp_label, " ", period, "<br>Excess calls: ", total_excess_calls,
+                  "<br>Increase: ", pct_increase, "%"))) +
+    geom_col(position = "dodge", width = 0.6, alpha = 0.8) +
+    scale_fill_manual(values = c("SSP2-4.5" = "#2c7bb6", "SSP5-8.5" = "#d73027")) +
+    scale_x_discrete(labels = c("2030s", "2040s", "2060s")) +
+    theme_minimal(base_size = 14) + theme(panel.grid.minor = element_blank()) +
+    labs(x = "", y = "Excess heat-related calls per summer", fill = "")
+  ggplotly(p, tooltip = "text") |> layout(hoverlabel = plh, paper_bgcolor = "rgba(0,0,0,0)",
+    plot_bgcolor = "rgba(0,0,0,0)", font = list(family = "Figtree", size = 13), margin = plm)
+}
+```
+:::
+::: {.column width="50%"}
+```{r}
+f <- here::here("results", "P6_Table3_disparity_index.csv")
+if (file.exists(f)) {
+  disp <- read.csv(f)
+  disp$ssp_label <- ifelse(disp$ssp == "ssp245", "SSP2-4.5",
+                            ifelse(disp$ssp == "ssp585", "SSP5-8.5", "Observed"))
+  period_years <- c("baseline" = 2020, "near" = 2030, "mid" = 2045, "far" = 2065)
+  disp$year <- period_years[disp$period]
+  p <- ggplot(disp, aes(x = year, y = ratio, color = ssp_label, group = ssp_label,
+    text = paste0(ssp_label, "<br>Year: ", year, "<br>Disparity ratio: ", ratio))) +
+    geom_line(linewidth = 1) + geom_point(size = 3) +
+    geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+    scale_color_manual(values = c("Observed" = "#2c2418", "SSP2-4.5" = "#2c7bb6", "SSP5-8.5" = "#d73027")) +
+    theme_minimal(base_size = 14) + theme(panel.grid.minor = element_blank()) +
+    labs(x = "", y = "Disparity ratio\n(high-minority / low-minority)", color = "")
+  ggplotly(p, tooltip = "text") |> layout(hoverlabel = plh, paper_bgcolor = "rgba(0,0,0,0)",
+    plot_bgcolor = "rgba(0,0,0,0)", font = list(family = "Figtree", size = 13), margin = plm)
+}
+```
+:::
+::::
+
+Left: excess heat-related calls per summer under two scenarios. Right: the disparity ratio between the highest-minority and lowest-minority neighborhoods. If the ratio increases over time, warming amplifies existing racial health gaps.
+
+
+## Who bears the projected burden {.smaller}
+
+```{r}
+f <- here::here("results", "P6_Table2_health_burden_demographics.csv")
+if (file.exists(f)) knitr::kable(read.csv(f), row.names = FALSE,
+  caption = "Demographics of neighborhoods with the highest projected increase in heat-related calls (Q4) vs. the lowest (Q1), under SSP5-8.5 in the 2060s.")
+```
+
+The neighborhoods projected to see the largest increase in heat-related calls are the same ones that already have the most swamp coolers, the lowest incomes, and the highest minority proportions. Climate change does not create new inequities here. It deepens the ones that already exist.
+
+
+::: {style="text-align:center; padding-top:8%;"}
+[*So what do we do about it?*]{style="font-family:Fraunces; font-size:3em; color:#2c2418; font-style:italic;"}
+:::
+
+The data tells us where the problem is, who it affects, and how it will get worse. The remaining question is what it would take to fix it.
+
+
+## Cooling access deserts {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e7) && "cooling_desert" %in% colnames(e7$bg)) {
+  bg7 <- e7$bg; sf7 <- st_as_sf(bg7)
+  if (is.na(st_crs(sf7))) sf7 <- st_set_crs(sf7, 4326)
+  sf7 <- sf::st_transform(sf7, 4326)
+  sf7 <- st_make_valid(sf7)
+  pal7 <- colorFactor(c("#e8e8e8", "#d73027"), domain = c(FALSE, TRUE))
+  pop7 <- sprintf("<div style='font-family:Figtree;font-size:13px'>Cooling desert: <strong>%s</strong><br>Evap: %s%%<br>Income: $%s</div>",
+    ifelse(bg7$cooling_desert, "Yes", "No"), round(bg7$evap_prop * 100, 1),
+    formatC(bg7$med_income, format = "d", big.mark = ","))
+  leaflet(sf7, width = "100%", height = "440px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor = ~pal7(cooling_desert), fillOpacity = 0.75, weight = 0.4,
+                color = "#fff", popup = pop7, highlightOptions = hl) |>
+    addLegend(colors = c("#e8e8e8", "#d73027"), labels = c("No", "Yes"),
+              title = "Cooling\ndesert", position = "bottomright", opacity = 0.8)
+}
+```
+:::
+::: {.column width="45%"}
+A cooling access desert is a neighborhood with both high evaporative cooler prevalence (top quartile) and low income (bottom quartile). These are the places where the need for better cooling is greatest and the capacity to pay for it is lowest.
+
+```{r}
+f <- here::here("results", "P7_Table1_cooling_deserts.csv")
+if (file.exists(f)) knitr::kable(read.csv(f), row.names = FALSE,
+  caption = "Cooling deserts vs. city average.")
+```
+:::
+::::
+
+
+## Vulnerability and cost {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e7) && "vulnerability_index" %in% colnames(e7$bg)) {
+  cmap(sf7, "vulnerability_index", "Vulnerability\nindex",
+    c("vulnerability_index", "evap_prop", "med_income", "pct_minority"),
+    c("Vulnerability", "Evap", "Income ($)", "Minority (%)"), h = "420px")
+}
+```
+[Composite vulnerability index: evap dependence, income, minority status, renter proportion, and housing age.]{style="font-size:0.8em; color:#8a7d6b;"}
+:::
+::: {.column width="45%"}
+```{r}
+f <- here::here("results", "P7_Table2_transition_costs.csv")
+if (file.exists(f)) knitr::kable(read.csv(f), row.names = FALSE,
+  caption = "Estimated cost to replace evaporative coolers with refrigerated AC ($ millions).")
+```
+
+The cost of replacing swamp coolers city-wide is substantial. But the cost of targeting only the cooling deserts is a fraction of that, and it is where the health returns are highest.
+:::
+::::
+
+
+## Priority neighborhoods {.smaller}
+
+:::: {.columns}
+::: {.column width="55%"}
+```{r}
+if (exists("bg", envir=e7) && "priority" %in% colnames(e7$bg)) {
+  pal_pr <- colorFactor(c("#e8e8e8", "#7b3294"), domain = c(FALSE, TRUE))
+  pop_pr <- sprintf("<div style='font-family:Figtree;font-size:13px'>Priority: <strong>%s</strong><br>Evap: %s%%<br>Income: $%s<br>Minority: %s%%</div>",
+    ifelse(bg7$priority, "Yes", "No"), round(bg7$evap_prop * 100, 1),
+    formatC(bg7$med_income, format = "d", big.mark = ","),
+    round(bg7$pct_minority * 100, 0))
+  leaflet(sf7, width = "100%", height = "440px") |>
+    addProviderTiles("CartoDB.Positron") |>
+    addPolygons(fillColor = ~pal_pr(priority), fillOpacity = 0.75, weight = 0.4,
+                color = "#fff", popup = pop_pr, highlightOptions = hl) |>
+    addLegend(colors = c("#e8e8e8", "#7b3294"), labels = c("No", "Priority"),
+              title = "", position = "bottomright", opacity = 0.8)
+}
+```
+:::
+::: {.column width="45%"}
+Priority neighborhoods meet all three criteria: high evaporative cooler prevalence, low income, and high composite vulnerability. These are the block groups where cooling intervention should start.
+
+```{r}
+f <- here::here("results", "P7_Table4_covenant_persistence.csv")
+if (file.exists(f)) knitr::kable(read.csv(f), row.names = FALSE,
+  caption = "Covenant persistence: are historically covenanted areas still worse on every dimension?")
+```
+:::
+::::
+
+::: {.notes}
+These are the neighborhoods where every dimension of disadvantage converges. High evap, low income, high minority, high renter, old housing. The covenant legacy persists across all of them.
+:::
 
 ## {background-color="#e4f0e7"}
 
