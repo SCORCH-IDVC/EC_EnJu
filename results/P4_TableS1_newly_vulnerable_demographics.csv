@@ -1,6 +1,6 @@
 "variable","newly_mean","already_mean","not_vuln_mean","p_newly_vs_not"
-"Evap. prevalence",0.46,0.76,0.08,5.48e-89
-"Median income ($)",48756.7,40728.81,72840.65,7.3e-18
-"Minority (%)",0.59,0.78,0.38,2.39e-30
-"Renter (%)",0.3,0.27,0.3,0.0239
-"Year built",1966.04,1967.76,1986.08,2.4e-36
+"Evap. prevalence",0.38,0.76,0.03,6.69e-95
+"Median income ($)",52363.99,40728.81,77686.67,1.25e-17
+"Minority (%)",0.54,0.78,0.37,2.61e-23
+"Renter (%)",0.3,0.27,0.3,0.03
+"Year built",1967.43,1967.76,1992.01,2.33e-55

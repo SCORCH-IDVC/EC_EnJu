@@ -184,9 +184,9 @@ calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
   twet <- calc_twet(temp_c, rh_pct)
   temp_c - eta * (temp_c - twet)
 }
-
+proj_wide$tmax_c <- (proj_wide$tmax_f - 32)/1.8
 #Is supp temp beyond the ASHRAE comfort threshold (>27C)
-proj_wide$failure <- calc_supply(proj_wide$tmax_f, proj_wide$hurs) > 27  # TRUE = failure
+proj_wide$failure <- calc_supply(proj_wide$tmax_c, proj_wide$hurs) > 27  # TRUE = failure
 #proj_wide$failure <- proj_wide$hurs > 30 & proj_wide$tmax_f > 95
 
 ## Annual failure days per model x ssp x period

@@ -130,7 +130,7 @@ calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
 }
 
 #Is supp temp beyond the ASHRAE comfort threshold (>27C)
-wx$failure <- calc_supply(wx$tmpf, wx$relh) > 27  # TRUE = failure
+wx$failure <- calc_supply(wx$temp_c, wx$relh) > 27  # TRUE = failure
 #wx$failure <- wx$relh > 30 & wx$tmpf > 95
 
 ## Aggregate to daily level
