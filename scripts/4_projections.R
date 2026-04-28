@@ -163,7 +163,31 @@ proj_wide <- merge(proj_tmax, proj_hurs,
 proj_wide$tmax_f <- proj_wide$tasmax_K * 9/5 - 459.67
 
 ## Failure threshold
-proj_wide$failure <- proj_wide$hurs > 30 & proj_wide$tmax_f > 95
+## Stull (2011) wet-bulb approximation
+calc_twet <- function(temp_c, rh_pct) {
+  temp_c * atan(0.151977 * (rh_pct + 8.313659)^0.5) +
+    atan(temp_c + rh_pct) -
+    atan(rh_pct - 1.676331) +
+    0.00391838 * rh_pct^1.5 * atan(0.023101 * rh_pct) -
+    4.686035
+}
+
+## Supply air temperature
+## ASHRAE Handbook: HVAC Systems and Equipment
+## Chapter: Evaporative Air-Cooling Equipment
+## saturation effectiveness
+## T_supply = T_db - eta * (T_db - T_wb)
+## - T_db (dry-bulb temperature)
+## - T_wb (wet-bulb temperature)
+## - eta (saturation efficiency)
+calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
+  twet <- calc_twet(temp_c, rh_pct)
+  temp_c - eta * (temp_c - twet)
+}
+
+#Is supp temp beyond the ASHRAE comfort threshold (>27C)
+proj_wide$failure <- calc_supply(proj_wide$tmax_f, proj_wide$hurs) > 27  # TRUE = failure
+#proj_wide$failure <- proj_wide$hurs > 30 & proj_wide$tmax_f > 95
 
 ## Annual failure days per model x ssp x period
 annual_fail <- aggregate(failure ~ model + ssp + period + year,

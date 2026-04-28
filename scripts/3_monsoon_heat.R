@@ -105,9 +105,33 @@ cat("Weather observations loaded:", nrow(wx), "\n")
 
 # We flag hours where RH > 30% AND temperature > 95°F
 # co-occur. These are the hours when a swamp cooler
-# cannot meaningfully cool a home...need to check
+# cannot meaningfully cool a home.
 
-wx$failure <- wx$relh > 30 & wx$tmpf > 95
+## Stull (2011) wet-bulb approximation
+calc_twet <- function(temp_c, rh_pct) {
+  temp_c * atan(0.151977 * (rh_pct + 8.313659)^0.5) +
+    atan(temp_c + rh_pct) -
+    atan(rh_pct - 1.676331) +
+    0.00391838 * rh_pct^1.5 * atan(0.023101 * rh_pct) -
+    4.686035
+}
+
+## Supply air temperature
+## ASHRAE Handbook: HVAC Systems and Equipment
+## Chapter: Evaporative Air-Cooling Equipment
+## saturation effectiveness
+## T_supply = T_db - eta * (T_db - T_wb)
+## - T_db (dry-bulb temperature)
+## - T_wb (wet-bulb temperature)
+## - eta (saturation efficiency)
+calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
+  twet <- calc_twet(temp_c, rh_pct)
+  temp_c - eta * (temp_c - twet)
+}
+
+#Is supp temp beyond the ASHRAE comfort threshold (>27C)
+wx$failure <- calc_supply(wx$tmpf, wx$relh) > 27  # TRUE = failure
+#wx$failure <- wx$relh > 30 & wx$tmpf > 95
 
 ## Aggregate to daily level
 daily <- aggregate(
