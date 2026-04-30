@@ -41,25 +41,69 @@ bg_sf <- st_make_valid(bg_sf)
 # 2. OBSERVED BASELINE (from Script 3)
 
 wx <- read.csv(here("data", "weather", "tucson_hourly.csv"))
-wx$failure <- wx$relh > 30 & wx$tmpf > 95
+wx$date <- as.Date(wx$date)
+wx$temp_c <- (wx$tmpf - 32) * 5 / 9
+wx$month <- as.integer(format(wx$date, "%m"))
 
-## Daily failure counts
+## Stull (2011) wet-bulb approximation
+calc_twet <- function(temp_c, rh_pct) {
+  temp_c * atan(0.151977 * (rh_pct + 8.313659)^0.5) +
+    atan(temp_c + rh_pct) -
+    atan(rh_pct - 1.676331) +
+    0.00391838 * rh_pct^1.5 * atan(0.023101 * rh_pct) -
+    4.686035
+}
+
+## Supply air temperature
+## ASHRAE Handbook: HVAC Systems and Equipment
+## Chapter: Evaporative Air-Cooling Equipment
+## saturation effectiveness
+## T_supply = T_db - eta * (T_db - T_wb)
+## - T_db (dry-bulb temperature)
+## - T_wb (wet-bulb temperature)
+## - eta (saturation efficiency)
+calc_supply <- function(temp_c, rh_pct, eta = 0.65) {
+  twet <- calc_twet(temp_c, rh_pct)
+  temp_c - eta * (temp_c - twet)
+}
+
+eta_values <- c(0.5, 0.6, 0.7, 0.8)
+
+## Compute observed baseline for each eta
+wx$failure <- calc_supply(wx$temp_c, wx$relh) > 27
+baseline_by_eta <- lapply(eta_values, function(eta_val) {
+  fail <- calc_supply(wx$temp_c, wx$relh, eta = eta_val) > 27
+  daily_f <- aggregate(fail ~ wx$date, FUN = sum)
+  colnames(daily_f) <- c("date", "failure_hours")
+  daily_f$year <- as.integer(format(daily_f$date, "%Y"))
+  daily_f$month <- as.integer(format(daily_f$date, "%m"))
+  daily_f$failure_day <- as.integer(daily_f$failure_hours > 0)
+  summer <- daily_f[daily_f$month >= 6 & daily_f$month <= 9, ]
+  annual <- aggregate(failure_day ~ year, data = summer, FUN = sum)
+  data.frame(eta = eta_val, baseline = mean(annual$failure_day))
+})
+baseline_by_eta <- do.call(rbind, baseline_by_eta)
+
+## Primary baseline at eta = 0.65
 daily_obs <- aggregate(failure ~ date, data = wx, FUN = sum)
 colnames(daily_obs)[2] <- "failure_hours"
 daily_obs$year <- as.integer(format(as.Date(daily_obs$date), "%Y"))
 daily_obs$month <- as.integer(format(as.Date(daily_obs$date), "%m"))
 daily_obs$failure_day <- as.integer(daily_obs$failure_hours > 0)
 
-## Observed baseline: mean annual failure days (Jun-Sep)
 obs_summer <- daily_obs[daily_obs$month >= 6 & daily_obs$month <= 9, ]
 obs_annual <- aggregate(failure_day ~ year, data = obs_summer, FUN = sum)
 baseline_failure_days <- mean(obs_annual$failure_day)
 baseline_failure_se <- sd(obs_annual$failure_day) / sqrt(nrow(obs_annual))
+baseline_failure_min <- min(obs_annual$failure_day)
+baseline_failure_max <- max(obs_annual$failure_day)
 
-cat("\n=== OBSERVED BASELINE ===\n")
+cat("\n=== OBSERVED BASELINE (eta = 0.65) ===\n")
 cat("Mean annual failure days (Jun-Sep):", round(baseline_failure_days, 1),
     "+/-", round(baseline_failure_se, 1), "\n")
 cat("Years:", paste(range(obs_annual$year), collapse = "-"), "\n")
+cat("\n=== BASELINE BY ETA ===\n")
+print(baseline_by_eta)
 
 # 3. DOWNLOAD NEX-GDDP-CMIP6 PROJECTIONS
 # NASA NEX-GDDP-CMIP6: daily downscaled climate projections
@@ -159,37 +203,31 @@ colnames(proj_hurs)[6] <- "hurs"
 proj_wide <- merge(proj_tmax, proj_hurs,
                    by = c("model", "ssp", "period", "year", "date"))
 
+## Compute model historical bias in hurs
+hist_model_rh <- mean(proj_wide$hurs[proj_wide$period == "historical"], na.rm = TRUE)
+hist_obs_rh <- mean(wx$relh[wx$month %in% 6:9], na.rm = TRUE)  # from KTUS
+rh_bias <- hist_model_rh - hist_obs_rh
+
+## Correct all projected humidity
+proj_wide$hurs_corrected <- proj_wide$hurs - rh_bias
+
 ## Convert tasmax from Kelvin to Fahrenheit
 proj_wide$tmax_f <- proj_wide$tasmax_K * 9/5 - 459.67
 
 ## Failure threshold
-## Stull (2011) wet-bulb approximation
-calc_twet <- function(temp_c, rh_pct) {
-  temp_c * atan(0.151977 * (rh_pct + 8.313659)^0.5) +
-    atan(temp_c + rh_pct) -
-    atan(rh_pct - 1.676331) +
-    0.00391838 * rh_pct^1.5 * atan(0.023101 * rh_pct) -
-    4.686035
+proj_wide$tmax_c <- (proj_wide$tmax_f - 32)/1.8
+
+## Compute failure for each eta value
+for (eta_val in eta_values) {
+  col <- paste0("failure_eta", eta_val * 10)
+  proj_wide[[col]] <- calc_supply(proj_wide$tmax_c, proj_wide$hurs, eta = eta_val) > 27
 }
 
-## Supply air temperature
-## ASHRAE Handbook: HVAC Systems and Equipment
-## Chapter: Evaporative Air-Cooling Equipment
-## saturation effectiveness
-## T_supply = T_db - eta * (T_db - T_wb)
-## - T_db (dry-bulb temperature)
-## - T_wb (wet-bulb temperature)
-## - eta (saturation efficiency)
-calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
-  twet <- calc_twet(temp_c, rh_pct)
-  temp_c - eta * (temp_c - twet)
-}
-proj_wide$tmax_c <- (proj_wide$tmax_f - 32)/1.8
 #Is supp temp beyond the ASHRAE comfort threshold (>27C)
 proj_wide$failure <- calc_supply(proj_wide$tmax_c, proj_wide$hurs) > 27  # TRUE = failure
 #proj_wide$failure <- proj_wide$hurs > 30 & proj_wide$tmax_f > 95
 
-## Annual failure days per model x ssp x period
+## Annual failure days per model x ssp x period (primary eta = 0.85)
 annual_fail <- aggregate(failure ~ model + ssp + period + year,
                          data = proj_wide, FUN = sum)
 colnames(annual_fail)[5] <- "failure_days"
@@ -198,8 +236,20 @@ colnames(annual_fail)[5] <- "failure_days"
 period_fail <- aggregate(failure_days ~ model + ssp + period,
                          data = annual_fail, FUN = mean)
 
-cat("\n=== PROJECTED FAILURE DAYS (mean per summer) ===\n")
+cat("\n=== PROJECTED FAILURE DAYS (mean per summer, eta = 0.85) ===\n")
 print(period_fail)
+
+## Compute period_fail for each eta
+period_fail_by_eta <- lapply(eta_values, function(eta_val) {
+  col <- paste0("failure_eta", eta_val * 10)
+  af <- aggregate(proj_wide[[col]] ~ model + ssp + period + year,
+                  data = proj_wide, FUN = sum)
+  colnames(af) <- c("model", "ssp", "period", "year", "failure_days")
+  pf <- aggregate(failure_days ~ model + ssp + period, data = af, FUN = mean)
+  pf$eta <- eta_val
+  pf
+})
+period_fail_all_eta <- do.call(rbind, period_fail_by_eta)
 
 # 5. TABLE 1: FAILURE DAYS BY PERIOD AND SCENARIO
 # Ensemble summary: median [10th-90th percentile] across models
@@ -231,10 +281,39 @@ for (s in c("ssp245", "ssp585")) {
 table1 <- do.call(rbind, table1_list)
 table1$label <- paste0(table1$median, " [", table1$p10, "-", table1$p90, "]")
 
-cat("\n=== TABLE 1: Projected failure days ===\n")
+cat("\n=== TABLE 1: Projected failure days (eta = 0.85) ===\n")
 print(table1[, c("ssp", "period", "label", "n_models")])
 
 write.csv(table1, here("results", "P4_Table1_projected_failure_days.csv"), row.names = FALSE)
+
+## Sensitivity table: projected failure days across eta values
+eta_proj_sensitivity <- lapply(eta_values, function(eta_val) {
+  pf <- period_fail_all_eta[period_fail_all_eta$eta == eta_val, ]
+  rows <- list()
+  for (s in c("ssp245", "ssp585")) {
+    for (p in c("historical", "near", "mid", "far")) {
+      sub <- pf[pf$ssp == s & pf$period == p, ]
+      if (nrow(sub) == 0 && p == "historical") {
+        sub <- pf[pf$period == "historical", ]
+      }
+      if (nrow(sub) > 0) {
+        rows[[length(rows) + 1]] <- data.frame(
+          eta = eta_val, ssp = s, period = p,
+          median = round(median(sub$failure_days), 1),
+          p10 = round(quantile(sub$failure_days, 0.1), 1),
+          p90 = round(quantile(sub$failure_days, 0.9), 1))
+      }
+    }
+  }
+  do.call(rbind, rows)
+})
+eta_proj_table <- do.call(rbind, eta_proj_sensitivity)
+eta_proj_table$label <- paste0(eta_proj_table$median, " [", eta_proj_table$p10, "-", eta_proj_table$p90, "]")
+
+cat("\n=== SENSITIVITY: Projected failure days by eta ===\n")
+print(eta_proj_table)
+
+write.csv(eta_proj_table, here("results", "P4_Table_eta_sensitivity.csv"), row.names = FALSE)
 
 # 6. DELTA METHOD: PROJECT BLOCK-GROUP-LEVEL EXPOSURE
 # Delta = projected failure days - model historical failure days.
@@ -401,16 +480,18 @@ fig1 <- ggplot() +
   geom_line(data = ribbon_df[ribbon_df$ssp == "ssp585", ],
             aes(x = period_year, y = median), color = "#d73027", linewidth = 1) +
   ## Observed baseline
-  geom_point(data = obs_point, aes(x = period_year, y = failure_days),
+  geom_point(aes(x = 2020, y = baseline_by_eta[2,2]),
              size = 3, shape = 18) +
-  geom_hline(yintercept = baseline_failure_days, linetype = "dashed", color = "grey40") +
+  geom_errorbar(aes(x = 2020, ymin = min(baseline_by_eta$baseline), ymax = max(baseline_by_eta$baseline)), width = 0.25, color = "grey30", linewidth = 0.4) +
+  #geom_hline(yintercept = baseline_failure_days, linetype = "dashed", color = "grey40") +
   ## Labels
-  annotate("text", x = 2068, y = max(ribbon_df$hi[ribbon_df$ssp == "ssp585"]),
-           label = "SSP5-8.5", color = "#d73027", size = 3, hjust = 0) +
-  annotate("text", x = 2068, y = max(ribbon_df$hi[ribbon_df$ssp == "ssp245"]),
-           label = "SSP2-4.5", color = "#2c7bb6", size = 3, hjust = 0) +
+  annotate("text", x = 2050, y = max(ribbon_df$hi[ribbon_df$ssp == "ssp585"]),
+           label = "SSP5 8.5", color = "#d73027", size = 3, hjust = 0) +
+  annotate("text", x = 2050, y = max(ribbon_df$hi[ribbon_df$ssp == "ssp245"]),
+           label = "SSP2 4.5", color = "#2c7bb6", size = 3, hjust = 0) +
   scale_x_continuous(breaks = c(2010, 2020, 2030, 2045, 2065),
                      labels = c("Hist.", "Obs.", "2030", "2045", "2065")) +
+  ylim(0, max(ribbon_df$hi)) + 
   theme_minimal(base_size = 9) +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold")) +
@@ -439,7 +520,7 @@ fig2 <- ggplot(bg_sf2) +
 ## ---- Figure 3: Threshold crossing bar chart ----
 cross_plot <- crossing_summary[crossing_summary$ssp != "observed", ]
 cross_plot$period <- factor(cross_plot$period, levels = c("near", "mid", "far"))
-cross_plot$ssp_label <- ifelse(cross_plot$ssp == "ssp245", "SSP2-4.5", "SSP5-8.5")
+cross_plot$ssp_label <- ifelse(cross_plot$ssp == "ssp245", "SSP2 4.5", "SSP5 8.5")
 
 fig3 <- ggplot(cross_plot, aes(x = period, y = pct_above, fill = ssp_label)) +
   geom_col(position = "dodge", width = 0.6, alpha = 0.8) +
@@ -475,6 +556,35 @@ figS1b <- ggplot(bg_sf2) +
         panel.grid = element_blank(),
         plot.title = element_text(size = 10, face = "bold")) +
   labs(title = "b  SSP5-8.5, 2060s")
+
+## ---- Figure S2: Eta sensitivity of projected failure days ----
+## Show fan chart for SSP5-8.5 only across eta values
+eta_ssp585_far <- eta_proj_table[eta_proj_table$ssp == "ssp585", ]
+
+figS2 <- ggplot(eta_ssp585_far, aes(x = factor(period, levels = c("historical", "near", "mid", "far")),
+                                    group = eta, color = factor(eta))) +
+  geom_line(aes(y = median), linewidth = 0.8) +
+  geom_point(aes(y = median), size = 2) +
+  geom_ribbon(aes(ymin = p10, ymax = p90, fill = factor(eta)), alpha = 0.08, color = NA) +
+  scale_color_manual(values = c("0.5" = "#2c7bb6", "0.6" = "#5b8fa8",
+                                "0.7" = "#fee090", "0.8" = "#fc8d59", "0.9" = "#d73027"),
+                     name = "eta") +
+  scale_fill_manual(values = c("0.5" = "#2c7bb6", "0.6" = "#5b8fa8",
+                               "0.7" = "#fee090", "0.8" = "#fc8d59", "0.9" = "#d73027"),
+                    name = "eta") +
+  scale_x_discrete(labels = c("Hist.", "2030s", "2040s", "2060s")) +
+  theme_minimal(base_size = 9) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold")) +
+  labs(x = "", y = "Cooler failure days per summer (SSP5-8.5)", title = "")
+
+pdf(here("results", "P4_FigureS2_eta_sensitivity.pdf"), width = 7, height = 5)
+print(figS2)
+dev.off()
+
+png(here("results", "P4_FigureS2_eta_sensitivity.png"), width = 7, height = 5, units = "in", res = 300)
+print(figS2)
+dev.off()
 
 
 # 10. EXPORT

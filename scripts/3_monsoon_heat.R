@@ -130,7 +130,16 @@ calc_supply <- function(temp_c, rh_pct, eta = 0.85) {
 }
 
 #Is supp temp beyond the ASHRAE comfort threshold (>27C)
-wx$failure <- calc_supply(wx$temp_c, wx$relh) > 27  # TRUE = failure
+eta_values <- c(0.5, 0.6, 0.7, 0.8)
+
+## Compute failure for each eta
+for (eta_val in eta_values) {
+  col <- paste0("failure_eta", eta_val * 10)
+  wx[[col]] <- calc_supply(wx$temp_c, wx$relh, eta = eta_val) > 27
+}
+
+## Primary analysis uses eta = 0.65
+wx$failure <- calc_supply(wx$temp_c, wx$relh, eta = 0.65) > 27  # TRUE = failure
 #wx$failure <- wx$relh > 30 & wx$tmpf > 95
 
 ## Aggregate to daily level
@@ -155,7 +164,7 @@ daily <- merge(daily, daily_rhmax, by = "date")
 ## Binary: is this a failure day? (at least 1 hour of co-occurrence)
 daily$failure_day <- as.integer(daily$failure_hours > 0)
 
-cat("\n=== COOLER FAILURE SUMMARY ===\n")
+cat("\n=== COOLER FAILURE SUMMARY (eta = 0.85) ===\n")
 cat("Total days analyzed:", nrow(daily), "\n")
 cat("Total failure days:", sum(daily$failure_day), "\n")
 cat("Failure rate:", round(mean(daily$failure_day) * 100, 1), "%\n")
@@ -206,6 +215,27 @@ cat("\n=== TABLE 1: Cooler failure climatology ===\n")
 print(table1)
 
 write.csv(table1, here("results", "P3_Table1_failure_climatology.csv"), row.names = FALSE)
+
+## Sensitivity table: failure days per year across eta values
+eta_sensitivity <- lapply(eta_values, function(eta_val) {
+  col <- paste0("failure_eta", eta_val * 10)
+  daily_eta <- aggregate(wx[[col]] ~ date, data = wx, FUN = sum)
+  colnames(daily_eta) <- c("date", "failure_hours")
+  daily_eta$year <- as.integer(format(as.Date(daily_eta$date), "%Y"))
+  daily_eta$failure_day <- as.integer(daily_eta$failure_hours > 0)
+  annual <- aggregate(failure_day ~ year, data = daily_eta, FUN = sum)
+  data.frame(eta = eta_val,
+             mean_failure_days = round(mean(annual$failure_day), 1),
+             sd = round(sd(annual$failure_day), 1),
+             min = min(annual$failure_day),
+             max = max(annual$failure_day))
+})
+eta_sensitivity <- do.call(rbind, eta_sensitivity)
+
+cat("\n=== SENSITIVITY: Failure days by eta ===\n")
+print(eta_sensitivity)
+
+write.csv(eta_sensitivity, here("results", "P3_Table_eta_sensitivity.csv"), row.names = FALSE)
 
 ## Also save full annual breakdown for supplement
 write.csv(annual_season, here("results", "P3_TableS1_annual_season_breakdown.csv"), row.names = FALSE)
@@ -356,17 +386,38 @@ print(fig2)
 dev.off()
 
 ## ---- Figure S1: Failure days time series ----
-annual_total <- aggregate(failure_day ~ year, data = daily, FUN = sum)
-colnames(annual_total)[2] <- "failure_days"
 
-figS1 <- ggplot(annual_total, aes(x = year, y = failure_days)) +
-  geom_col(fill = "#d73027", alpha = 0.7, width = 0.6) +
-  geom_hline(yintercept = mean(annual_total$failure_days),
-             linetype = "dashed", color = "grey40") +
+eta_sensitivity_y <- lapply(eta_values, function(eta_val) {
+  col <- paste0("failure_eta", eta_val * 10)
+  daily_eta <- aggregate(wx[[col]] ~ date, data = wx, FUN = sum)
+  colnames(daily_eta) <- c("date", "failure_hours")
+  daily_eta$year <- as.integer(format(as.Date(daily_eta$date), "%Y"))
+  daily_eta$failure_day <- as.integer(daily_eta$failure_hours > 0)
+  annual <- aggregate(failure_day ~ year, data = daily_eta, FUN = sum)
+  data.frame(eta = eta_val,annual)
+})
+eta_sensitivity_target <- eta_sensitivity_y[[2]]
+eta_sensitivity_y <- do.call(rbind, eta_sensitivity_y)
+annual_total_min <- aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = min)
+annual_total_max <- aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = max)
+baseline_fd_mean <- mean(aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = mean)[,2])
+
+colnames(annual_total_min)[2] <- "min"
+colnames(annual_total_max)[2] <- "max"
+colnames(eta_sensitivity_target)[3] <- "target"
+
+annual_total_comb <- cbind(annual_total_min, annual_total_max, eta_sensitivity_target[,-1])
+annual_total_comb <- annual_total_comb[,-1]
+
+figS1 <- ggplot(annual_total_comb, aes(x = year, y = target)) +
+  geom_point(fill = "#d73027", alpha = 0.7, width = 0.6) +
+  geom_errorbar(aes(ymin = min, ymax = max), width = 0.25, color = "grey30", linewidth = 0.4) +
+  geom_hline(yintercept = baseline_fd_mean, linetype = "dashed", color = "grey40") +
   theme_minimal(base_size = 9) +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold")) +
   labs(x = "Year", y = "Total failure days (May-Sep)", title = "")
+
 
 pdf(here("results", "P3_FigureS1_annual_failure_days.pdf"), width = 6, height = 4)
 print(figS1)
@@ -395,3 +446,53 @@ dev.off()
 png(here("results", "P3_FigureS2_scatter_compound.png"), width = 5, height = 5, units = "in", res = 300)
 print(figS2)
 dev.off()
+
+## ---- Figure S3: Eta sensitivity heatmaps ----
+## Show failure probability heatmap for each eta value
+eta_heatmaps <- lapply(eta_values, function(eta_val) {
+  col <- paste0("failure_eta", eta_val * 10)
+  hd_eta <- aggregate(wx[[col]] ~ doy + hour, data = wx, FUN = mean, na.rm = TRUE)
+  colnames(hd_eta) <- c("doy", "hour", "fail_prop")
+  ggplot(hd_eta, aes(x = doy, y = hour, fill = fail_prop)) +
+    geom_tile() +
+    scale_fill_gradientn(colors = c("#f7f7f7", "#fc8d59", "#b30000"),
+                         name = "Failure\nprob.", limits = c(0, 1)) +
+    scale_y_continuous(breaks = seq(0, 23, 4)) +
+    theme_minimal(base_size = 8) +
+    theme(panel.grid = element_blank(),
+          legend.key.height = unit(0.3, "cm"),
+          legend.key.width = unit(0.2, "cm"),
+          plot.title = element_text(size = 9, face = "bold")) +
+    labs(x = "Day of year", y = "Hour", title = bquote(eta == .(eta_val)))
+})
+
+figS3 <- (eta_heatmaps[[1]] + eta_heatmaps[[2]] + eta_heatmaps[[3]]) /
+  (eta_heatmaps[[4]] + plot_spacer())
+
+pdf(here("results", "P3_FigureS3_eta_heatmaps.pdf"), width = 12, height = 7)
+print(figS3)
+dev.off()
+
+png(here("results", "P3_FigureS3_eta_heatmaps.png"), width = 12, height = 7, units = "in", res = 300)
+print(figS3)
+dev.off()
+
+## ---- Figure S4: Eta sensitivity bar chart ----
+figS4 <- ggplot(eta_sensitivity, aes(x = factor(eta), y = mean_failure_days)) +
+  geom_col(fill = "#c47a4a", alpha = 0.7, width = 0.6) +
+  geom_errorbar(aes(ymin = pmax(mean_failure_days - sd, 0),
+                    ymax = mean_failure_days + sd),
+                width = 0.2, color = "grey40") +
+  theme_minimal(base_size = 9) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold")) +
+  labs(x = "Saturation efficiency (eta)", y = "Mean failure days per summer", title = "")
+
+pdf(here("results", "P3_FigureS4_eta_sensitivity.pdf"), width = 6, height = 4)
+print(figS4)
+dev.off()
+
+png(here("results", "P3_FigureS4_eta_sensitivity.png"), width = 6, height = 4, units = "in", res = 300)
+print(figS4)
+dev.off()
+
