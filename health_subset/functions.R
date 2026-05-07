@@ -4,7 +4,6 @@ health_script <- function(){
   load("WS.RData")
   health_path <- "heat_calls_by_blockgroup_syn.csv"
   health <- read.csv(health_path, stringsAsFactors = FALSE)
-  health$GEOID <- rep(bg$GEOID, each = length(unique(health$date)))
   health$date <- as.Date(health$date)
 
   wx_path <- "tucson_hourly.csv"
@@ -42,11 +41,17 @@ health_script <- function(){
   daily_wx$failure_hours[is.na(daily_wx$failure_hours)] <- 0
   daily_wx$failure_day <- as.integer(daily_wx$failure_hours > 0)
   
+  bg$GEOID <- as.character(bg$GEOID)
+  bg$GEOID <- sub("^0", "", bg$GEOID)
+
   bg_calls <- aggregate(calls ~ GEOID, data = health, FUN = sum)
   colnames(bg_calls)[2] <- "total_calls"
   
   bg_days <- aggregate(calls ~ GEOID, data = health, FUN = length)
   colnames(bg_days)[2] <- "n_days"
+  
+  bg_calls$GEOID <- as.character(bg_calls$GEOID)
+  bg_days$GEOID <- as.character(bg_days$GEOID)
   
   bg <- merge(bg, bg_calls, by = "GEOID", all.x = TRUE)
   bg <- merge(bg, bg_days, by = "GEOID", all.x = TRUE)
@@ -169,7 +174,7 @@ health_script <- function(){
   fig1a <- ggplot(bg_sf2) +
     geom_sf(aes(fill = call_rate), color = "white", size = 0.15) +
     scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
-                         name = "Call rate\n(per 1000 days)") +
+                         name = "HRI") +
     theme_minimal(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid = element_blank(),
@@ -177,7 +182,7 @@ health_script <- function(){
           legend.key.height = unit(0.4, "cm"),
           legend.key.width = unit(0.3, "cm"),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(title = "a  Heat-related calls")
+    labs(title = "a.")
   
   fig1b <- ggplot(bg_sf2) +
     geom_sf(aes(fill = evap_prop), color = "white", size = 0.15) +
@@ -190,7 +195,7 @@ health_script <- function(){
           legend.key.height = unit(0.4, "cm"),
           legend.key.width = unit(0.3, "cm"),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(title = "b  Evap. cooler prevalence")
+    labs(title = "b.")
   
   fig1 <- fig1a + fig1b + plot_layout(ncol = 2)
   
@@ -219,7 +224,7 @@ health_script <- function(){
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
     labs(x = "Evap. cooler prevalence",
-         y = "Heat-related call rate (per 1000 days)",
+         y = "HRI rate (per 1000 days)",
          title = "")
   
   pdf("P5_Figure2_scatter_calls_evap.pdf", width = 5, height = 5)
@@ -242,7 +247,7 @@ health_script <- function(){
     theme_minimal(base_size = 9) +
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(x = "", y = "Daily heat-related calls (city-wide)", title = "")
+    labs(x = "", y = "Daily HRI (city-wide)", title = "")
   
   pdf("P5_Figure3_failure_day_calls.pdf", width = 5, height = 4)
   print(fig3)
@@ -265,7 +270,7 @@ health_script <- function(){
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
     labs(x = "Evap. cooler prevalence quartile",
-         y = "Heat-related call rate (per 1000 days)", title = "")
+         y = "HRI rate (per 1000 days)", title = "")
   
   pdf("P5_Figure4_calls_by_quartile.pdf", width = 6, height = 4)
   print(fig4)
@@ -431,22 +436,22 @@ health_script <- function(){
   fig1a <- ggplot(bg_sf2) +
     geom_sf(aes(fill = call_rate), color = "white", size = 0.15) +
     scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
-                         name = "Call rate", limits = lims) +
+                         name = "HRI", limits = lims) +
     theme_minimal(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(title = "a  Current")
+    labs(title = "a.")
   
   fig1b <- ggplot(bg_sf2) +
     geom_sf(aes(fill = proj_rate_ssp585_far), color = "white", size = 0.15) +
     scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
-                         name = "Call rate", limits = lims) +
+                         name = "HRI", limits = lims) +
     theme_minimal(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(title = "b  SSP5-8.5, 2060s")
+    labs(title = "b.")
   
   fig1 <- fig1a + fig1b + plot_layout(ncol = 2)
   
@@ -469,7 +474,7 @@ health_script <- function(){
     theme_minimal(base_size = 9) +
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(x = "", y = "Total excess heat-related calls per summer", fill = "")
+    labs(x = "", y = "Total excess HRI per summer", fill = "")
   
   pdf("P6_Figure2_excess_calls.pdf", width = 6, height = 4)
   print(fig2)
@@ -492,7 +497,7 @@ health_script <- function(){
     theme_minimal(base_size = 9) +
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold")) +
-    labs(x = "", y = "Disparity ratio\n(high-minority / low-minority call rate)", color = "")
+    labs(x = "", y = "Disparity ratio\n(high-minority / low-minority HRI rate)", color = "")
   
   pdf("P6_Figure3_disparity_trajectory.pdf", width = 6, height = 4)
   print(fig3)
@@ -505,7 +510,7 @@ health_script <- function(){
   fig4 <- ggplot(bg_sf2) +
     geom_sf(aes(fill = excess_calls_ssp585_far), color = "white", size = 0.15) +
     scale_fill_gradientn(colors = c("#f7f7f7", "#fee090", "#fc8d59", "#d73027"),
-                         name = "Excess calls\nper summer") +
+                         name = "Excess HRI\nper summer") +
     theme_minimal(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid = element_blank(),

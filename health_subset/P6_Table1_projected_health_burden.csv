@@ -1,0 +1,8 @@
+"ssp","period","mean_proj_rate","total_excess_calls","pct_increase","n_bg_doubled"
+"observed","baseline",1009.22,0,0,0
+"ssp245","near",997.69,11939.8,-1.1,0
+"ssp245","mid",1062.58,16626.5,5.3,0
+"ssp245","far",1141.38,22317.4,13.1,0
+"ssp585","near",959.07,9150.1,-5,0
+"ssp585","mid",1112.8,20253,10.3,0
+"ssp585","far",1230.99,28789.4,22,0
