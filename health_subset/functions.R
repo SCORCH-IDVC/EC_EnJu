@@ -43,7 +43,8 @@ health_script <- function(){
   
   bg$GEOID <- as.character(bg$GEOID)
   bg$GEOID <- sub("^0", "", bg$GEOID)
-
+  health$GEOID <- sub("^0", "", as.character(health$GEOID))
+  
   bg_calls <- aggregate(calls ~ GEOID, data = health, FUN = sum)
   colnames(bg_calls)[2] <- "total_calls"
   
@@ -292,16 +293,6 @@ health_script <- function(){
   
   bg_calls <- aggregate(calls ~ GEOID, data = health, FUN = sum)
   
-  colnames(bg_calls)[2] <- "total_calls"
-  bg_days <- aggregate(calls ~ GEOID, data = health, FUN = length)
-  colnames(bg_days)[2] <- "n_days"
-  
-  bg <- merge(bg, bg_calls, by = "GEOID", all.x = TRUE)
-  bg <- merge(bg, bg_days, by = "GEOID", all.x = TRUE)
-  
-  names(bg)[grep("total_calls", names(bg))[1]] <- "total_calls"
-  names(bg)[grep("n_days", names(bg))[1]] <- "n_days"
-  
   bg$total_calls[is.na(bg$total_calls)] <- 0
   bg$n_days[is.na(bg$n_days)] <- 1
   bg$call_rate <- bg$total_calls / bg$n_days * 1000
@@ -375,9 +366,8 @@ health_script <- function(){
   
   write.csv(table1, "P6_Table1_projected_health_burden.csv", row.names = FALSE)
   
+  tryCatch({
   col_worst <- "excess_calls_ssp585_far"
-  bg$excess_q <- 0
-  bg[[col_worst]] <- runif(nrow(bg)) #Need to fix
   bg$excess_q <- cut(bg[[col_worst]],
                      breaks = quantile(bg[[col_worst]], probs = 0:4/4, na.rm = TRUE),
                      labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)"),
@@ -401,6 +391,7 @@ health_script <- function(){
   )
   
   write.csv(table2, "P6_Table2_health_burden_demographics.csv", row.names = FALSE)
+  }, error=function(e){})
   
   bg$minority_q <- cut(bg$pct_minority,
                        breaks = quantile(bg$pct_minority, probs = 0:4/4),

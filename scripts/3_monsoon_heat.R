@@ -386,38 +386,21 @@ print(fig2)
 dev.off()
 
 ## ---- Figure S1: Failure days time series ----
+wx$failure_065 <- calc_supply(wx$temp_c, wx$relh, eta = 0.65) > 27
 
-eta_sensitivity_y <- lapply(eta_values, function(eta_val) {
-  col <- paste0("failure_eta", eta_val * 10)
-  daily_eta <- aggregate(wx[[col]] ~ date, data = wx, FUN = sum)
-  colnames(daily_eta) <- c("date", "failure_hours")
-  daily_eta$year <- as.integer(format(as.Date(daily_eta$date), "%Y"))
-  daily_eta$failure_day <- as.integer(daily_eta$failure_hours > 0)
-  annual <- aggregate(failure_day ~ year, data = daily_eta, FUN = sum)
-  data.frame(eta = eta_val,annual)
-})
-eta_sensitivity_target <- eta_sensitivity_y[[2]]
-eta_sensitivity_y <- do.call(rbind, eta_sensitivity_y)
-annual_total_min <- aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = min)
-annual_total_max <- aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = max)
-baseline_fd_mean <- mean(aggregate(failure_day ~ year, data = eta_sensitivity_y, FUN = mean)[,2])
+daily_065 <- aggregate(failure_065 ~ date, data = wx, FUN = sum)
+colnames(daily_065) <- c("date", "failure_hours")
+daily_065$year <- as.integer(format(as.Date(daily_065$date), "%Y"))
+daily_065$failure_day <- as.integer(daily_065$failure_hours > 0)
+annual_065 <- aggregate(failure_day ~ year, data = daily_065, FUN = sum)
 
-colnames(annual_total_min)[2] <- "min"
-colnames(annual_total_max)[2] <- "max"
-colnames(eta_sensitivity_target)[3] <- "target"
-
-annual_total_comb <- cbind(annual_total_min, annual_total_max, eta_sensitivity_target[,-1])
-annual_total_comb <- annual_total_comb[,-1]
-
-figS1 <- ggplot(annual_total_comb, aes(x = year, y = target)) +
-  geom_point(fill = "#d73027", alpha = 0.7, width = 0.6) +
-  geom_errorbar(aes(ymin = min, ymax = max), width = 0.25, color = "grey30", linewidth = 0.4) +
-  geom_hline(yintercept = baseline_fd_mean, linetype = "dashed", color = "grey40") +
+figS1 <- ggplot(annual_065, aes(x = year, y = failure_day)) +
+  geom_col(fill = "#d73027", alpha = 0.7, width = 0.6) +
+  geom_hline(yintercept = mean(annual_065$failure_day), linetype = "dashed", color = "grey40") +
   theme_minimal(base_size = 9) +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold")) +
   labs(x = "Year", y = "Total failure days (May-Sep)", title = "")
-
 
 pdf(here("results", "P3_FigureS1_annual_failure_days.pdf"), width = 6, height = 4)
 print(figS1)
