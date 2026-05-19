@@ -305,7 +305,7 @@ dir.create(here("results"), recursive = TRUE, showWarnings = FALSE)
 
 ## Aggregate to mean conditions per DOY x hour (across years)
 heatmap_data <- aggregate(
-  cbind(mean_temp = tmpf, mean_rh = relh, fail_prop = failure) ~ doy + hour,
+  cbind(mean_temp = temp_c, mean_rh = relh, fail_prop = failure) ~ doy + hour,
   data = wx, FUN = mean, na.rm = TRUE
 )
 
@@ -313,7 +313,7 @@ heatmap_data <- aggregate(
 fig1a <- ggplot(heatmap_data, aes(x = doy, y = hour, fill = mean_temp)) +
   geom_tile() +
   scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
-                       name = "Temp (F)") +
+                       name = "Temp (°C)") +
   scale_y_continuous(breaks = seq(0, 23, 4)) +
   theme_minimal(base_size = 9) +
   theme(panel.grid = element_blank(),

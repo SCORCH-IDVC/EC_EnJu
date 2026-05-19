@@ -5,6 +5,8 @@ library(spdep)
 library(sf)
 library(spatialreg)
 library(patchwork)
+library(maps)
+library(cowplot)
 
 bg_sf <- st_read(here("data", "Q1 Data Shapefile", "pima_Q1_data.shp"))
 
@@ -216,8 +218,31 @@ pal_lisa <- c("High-High" = "#d7191c", "Low-Low" = "#2c7bb6",
 pal_cov <- c("0" = "grey70", "1" = "#7b3294")
 
 ## ---- Fig 1: Choropleth of evap cooler prevalence ----
-fig1 <- ggplot(bg_sf) +
-  geom_sf(aes(fill = evap_prop), color = "white", size = 0.15) +
+library(maps)
+library(cowplot)
+us <- map_data("state")
+az <- us[us$region == "arizona", ]
+
+inset <- ggplot() +
+  geom_polygon(data = us, aes(x = long, y = lat, group = group),
+               fill = "grey90", color = "grey70", size = 0.15) +
+  geom_polygon(data = az, aes(x = long, y = lat, group = group),
+               fill = "#b5d4be", color = "grey40", size = 0.3) +
+  geom_point(aes(x = -110.9747, y = 32.2226), size = 1.5, color = "#d73027") +
+  annotate("text", x = -110.9747, y = 30.5, label = "Tucson",
+           size = 2, color = "#2c2418", fontface = "bold") +
+  coord_fixed(1.3) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
+  labs(title = "b") +
+  theme(plot.title = element_text(size = 10, face = "bold"))
+
+## Main map with city boundary
+city_boundary <- st_union(bg_sf)
+
+fig1_main <- ggplot() +
+  geom_sf(data = bg_sf, aes(fill = evap_prop), color = "white", size = 0.15) +
+  geom_sf(data = city_boundary, fill = NA, color = "grey30", size = 0.4, linetype = "solid") +
   scale_fill_gradientn(colors = c("#2c7bb6", "#abd9e9", "#fee090", "#d73027"),
                        name = "Evap. cooler\nprevalence") +
   theme_minimal(base_size = 9) +
@@ -230,10 +255,15 @@ fig1 <- ggplot(bg_sf) +
         plot.title = element_text(size = 10, face = "bold")) +
   labs(title = "a")
 
+fig1 <- ggdraw() +
+  draw_plot(fig1_main, x = 0, y = 0, width = 1, height = 1) +
+  draw_plot(inset, x = 0.62, y = 0.72, width = 0.35, height = 0.3)
+
 ## ---- Fig 2: LISA cluster map ----
 bg_sf$lisa_cluster <- bg$lisa_cluster
 fig2 <- ggplot(bg_sf) +
   geom_sf(aes(fill = lisa_cluster), color = "white", size = 0.15) +
+  geom_sf(data = city_boundary, fill = NA, color = "grey30", size = 0.4, linetype = "solid") +
   scale_fill_manual(values = pal_lisa, name = "LISA cluster") +
   theme_minimal(base_size = 9) +
   theme(axis.text = element_blank(),
@@ -243,7 +273,12 @@ fig2 <- ggplot(bg_sf) +
         legend.key.height = unit(0.3, "cm"),
         legend.key.width = unit(0.3, "cm"),
         plot.title = element_text(size = 10, face = "bold")) +
-  labs(title = "b")
+  labs(title = "a")
+
+fig2 <- ggdraw() +
+  draw_plot(fig2, x = 0, y = 0, width = 1, height = 1) +
+  draw_plot(inset, x = 0.62, y = 0.72, width = 0.35, height = 0.3)
+
 
 ## ---- Fig 3a-d: Scatterplots (evap prevalence vs sociodemographics) ----
 make_scatter <- function(xvar, xlab, panel_label) {
@@ -292,6 +327,15 @@ fig4 <- ggplot(or_dat, aes(x = or, y = label)) +
 # 8. EXPORT FIGURES
 
 ## ---- Figure 1: Maps (panels a, b) ----
+pdf(here("results", "P1_Figure1.pdf"), width = 4, height = 5)
+print(fig1)
+dev.off()
+
+
+pdf(here("results", "P1_Figure2.pdf"), width = 4, height = 5)
+print(fig2)
+dev.off()
+
 fig1_combined <- fig1 + fig2 + plot_layout(ncol = 2)
 
 pdf(here("results", "P1_Figure1_maps.pdf"), width = 10, height = 5)

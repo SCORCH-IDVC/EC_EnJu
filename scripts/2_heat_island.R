@@ -413,6 +413,28 @@ fig1_legend <- ggplot(legend_df, aes(x = evap, y = tmax, fill = fill)) +
         plot.background = element_rect(fill = "white", color = NA))
 
 ## ---- Figure 2: LISA cluster map ----
+library(maps)
+library(cowplot)
+us <- map_data("state")
+az <- us[us$region == "arizona", ]
+
+inset <- ggplot() +
+  geom_polygon(data = us, aes(x = long, y = lat, group = group),
+               fill = "grey90", color = "grey70", size = 0.15) +
+  geom_polygon(data = az, aes(x = long, y = lat, group = group),
+               fill = "#b5d4be", color = "grey40", size = 0.3) +
+  geom_point(aes(x = -110.9747, y = 32.2226), size = 1.5, color = "#d73027") +
+  annotate("text", x = -110.9747, y = 30.5, label = "Tucson",
+           size = 2, color = "#2c2418", fontface = "bold") +
+  coord_fixed(1.3) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
+  labs(title = "b") +
+  theme(plot.title = element_text(size = 10, face = "bold"))
+
+## Main map with city boundary
+city_boundary <- st_union(bg_sf)
+
 bi_pal <- c("High evap / Hot"  = "#d7191c",
             "Low evap / Cool"  = "#2c7bb6",
             "High evap / Cool" = "#fdae61",
@@ -423,6 +445,7 @@ bg_sf2$bi_cluster <- bg$bi_cluster
 
 fig2 <- ggplot(bg_sf2) +
   geom_sf(aes(fill = bi_cluster), color = "white", size = 0.15) +
+  geom_sf(data = city_boundary, fill = NA, color = "grey30", size = 0.4, linetype = "solid") +
   scale_fill_manual(values = bi_pal, name = "Bivariate LISA") +
   theme_minimal(base_size = 9) +
   theme(axis.text = element_blank(),
@@ -434,7 +457,15 @@ fig2 <- ggplot(bg_sf2) +
         legend.text = element_text(size = 6.5),
         legend.title = element_text(size = 7),
         plot.title = element_text(size = 10, face = "bold")) +
-  labs(title = "b")
+  labs(title = "a")
+
+fig2 <- ggdraw() +
+  draw_plot(fig2, x = 0, y = 0, width = 1, height = 1) +
+  draw_plot(inset, x = 0.62, y = 0.72, width = 0.35, height = 0.3)
+
+pdf(here("results", "P2_Figure2.pdf"), width = 6, height = 5)
+print(fig2)
+dev.off()
 
 ## ---- Figure 3: NDVI choropleth map ----
 bg_sf2$mean_ndvi <- bg$mean_ndvi
